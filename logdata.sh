@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 if [ -z $METER_ADDR ]; then
 	METER_ADDR=FLUKE_8846A_1811019.local
 	METER_ADDR=192.168.1.13
