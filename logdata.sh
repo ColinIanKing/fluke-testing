@@ -10,7 +10,8 @@ if [ -z $TAGPORT ]; then
 	TAGPORT=3500
 fi
 if [ -z $LOGMETER ]; then
-        LOGMETER=/home/king/power-benchmarking/instrument-lib/logmeter
+	# assume instrument lib is cloned under this tree
+        LOGMETER=`pwd`/instrument-lib/logmeter
 fi
 if [ -Z $INTERVAL] ; then
 	INTERVAL=1.0
