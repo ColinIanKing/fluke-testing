@@ -49,7 +49,7 @@ int main(int argc, char**argv)
 
 		if ((n = recvfrom(sockfd, mesg, 1000, 0, (struct sockaddr *)&client_addr, &len)) > 0) {
 			mesg[n] = 0;
-			printf("Received '%s'\n", mesg);
+			sendit(mesg);
 		}
 	}
 }
