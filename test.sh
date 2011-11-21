@@ -7,10 +7,14 @@ if [ -z $TAGPORT ]; then
 	# currently this is to udp-relay
 fi
 if [ -z $SENDTAG ]; then
-	SENDTAG=/home/king/power-benchmarking/instrument-lib/sendtag
+	SENDTAG=`pwd`/instrument-lib/sendtag
 fi
 if [ -z $ITERATIONS_PER_TEST ]; then
 	ITERATIONS_PER_TEST=5
+fi
+
+if [ ! -d instrument-lib ]; then
+        git clone git://kernel.ubuntu.com/sconklin/instrument-lib
 fi
 
 info=`uname -r -m -n`
