@@ -19,6 +19,10 @@ fi
 SAMPLES=10000000
 LOG=samples.log
 
+if [ ! -d instrument-lib ]; then
+	git clone git://kernel.ubuntu.com/sconklin/instrument-lib
+fi
+
 rm -f $LOG
 $LOGMETER --addr=$METER_ADDR --port=$PORT --tagport=$TAGPORT --measure=hc --acdc=DC --interval=$INTERVAL --samples=$SAMPLES --out=$LOG
 
