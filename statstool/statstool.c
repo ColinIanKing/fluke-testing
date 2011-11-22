@@ -179,6 +179,7 @@ int data_parse(char *filename)
 	char hostname[1024];
 	char kernel[1024];
 	char test[1024];
+	char *arch;
 
 	float start_secs = -1.0;
 
@@ -210,9 +211,16 @@ int data_parse(char *filename)
 			ptr = strstr(ptr, " ");
 			
 			if (strstr(ptr, "TEST_CLIENT")) {
+				char buf[64];
 				if (!(opts & OPTS_EXTRACT_RESULTS))
 					printf("Client: %s\n", ptr + 13);
-				sscanf(ptr + 13, "%s %s", hostname, kernel);
+				sscanf(ptr + 13, "%s %s %s", hostname, kernel, buf);
+				if (strncmp(buf, "x86_64", 6) == 0)
+					arch = "amd64";
+				else if (strncmp(buf, "i", 1) == 0) 
+					arch = "i386";
+				else 
+					arch = "unknown";
 			}
 			if (strstr(ptr, "TEST_BEGIN")) {
 				if (!(opts & OPTS_EXTRACT_RESULTS))
@@ -226,12 +234,10 @@ int data_parse(char *filename)
 				if (opts & OPTS_EXTRACT_RESULTS) {
 					FILE *fp;
 					char name[PATH_MAX];
-					snprintf(name, sizeof(name), "%s-%s-%s.txt",
-						hostname,
-						kernel,
-						test);
+					snprintf(name, sizeof(name), "%s-%s-%s-%s.txt",
+						hostname, kernel, test, arch);
 					if ((fp = fopen(name, "w"))) {
-						fprintf(fp, "%s %s, %s\n\n", hostname, kernel, test);
+						fprintf(fp, "%s %s (%s), %s\n\n", hostname, kernel, arch, test);
 						data_analyse(fp, data, index+1);
 						fclose(fp);
 					} else {
