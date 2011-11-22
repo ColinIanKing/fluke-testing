@@ -37,6 +37,8 @@
 #define DATA_STATS_AVERAGE	2
 #define DATA_STATS_MAX		3
 
+#define OPTS_EXTRACT_RESULTS	(0x0000001)
+
 /* Single point of data, optionally a tag */
 typedef struct point_t {
 	struct point_t *next;
@@ -58,6 +60,8 @@ typedef struct {
 
 	int samples;		/* Number of samples */
 } data_t;
+
+static int opts;
 
 void data_append_point(data_t *data, point_t *p)
 {
@@ -113,14 +117,14 @@ void calc_average_stddev(data_t *data, int n, float *average, float *stddev)
 	}
 }
 
-void data_analyse(data_t *data, int n)
+void data_analyse(FILE *fp, data_t *data, int n)
 {
 	int i;
 	float average[DATA_STATS_MAX];
 	float stddev[DATA_STATS_MAX];
 
-	printf("                Integral  Duration   Average\n");
-	printf("                           (Secs)     (mA)\n");
+	fprintf(fp, "                Integral  Duration   Average\n");
+	fprintf(fp, "                           (Secs)     (mA)\n");
 
 	for (i=0; i<n; i++) {
 		point_t *p = data[i].head;
@@ -130,7 +134,13 @@ void data_analyse(data_t *data, int n)
 			if (p->next) {
 				float dt = p->next->x - p->x;
 				float y  = ((p->y + p->next->y) / 2.0);
+				/* Midnight wrap */
+				/*
+				if (dt < 0)
+					dt += (24.0 * 60.0 * 60.0);
+				*/
 				data[i].stats[DATA_STATS_INTEGRAL] += (y * dt);
+
 			}
 			p = p->next;
 		}
@@ -138,7 +148,7 @@ void data_analyse(data_t *data, int n)
 		data[i].stats[DATA_STATS_DURATION] = data[i].x_max - data[i].x_min;
 		data[i].stats[DATA_STATS_AVERAGE] = data[i].stats[DATA_STATS_INTEGRAL] / data[i].stats[DATA_STATS_DURATION];
 
-		printf("Test run %2d     %8.4f    %7.3f  %8.4f\n",
+		fprintf(fp, "Test run %2d     %8.4f    %7.3f  %8.4f\n",
 			i + 1,
 			data[i].stats[DATA_STATS_INTEGRAL],
 			data[i].stats[DATA_STATS_DURATION],
@@ -146,16 +156,16 @@ void data_analyse(data_t *data, int n)
 	}
 
 	calc_average_stddev(data, n, average, stddev);
-	printf("-------         --------    -------  --------\n");
-	printf("Average         %8.4f    %7.3f  %8.4f\n",
+	fprintf(fp, "-------         --------    -------  --------\n");
+	fprintf(fp, "Average         %8.4f    %7.3f  %8.4f\n",
 			average[DATA_STATS_INTEGRAL],
 			average[DATA_STATS_DURATION],
 			1000.0 * average[DATA_STATS_AVERAGE]);
-	printf("Std.Dev.        %8.4f    %7.3f  %8.4f\n",
+	fprintf(fp, "Std.Dev.        %8.4f    %7.3f  %8.4f\n",
 			stddev[DATA_STATS_INTEGRAL],
 			stddev[DATA_STATS_DURATION],
 			1000.0 * stddev[DATA_STATS_AVERAGE]);
-	printf("-------         --------    -------  --------\n\n");
+	fprintf(fp, "-------         --------    -------  --------\n\n");
 }
 
 
@@ -166,11 +176,18 @@ int data_parse(char *filename)
 	data_t data[MAX_TEST_RUNS];
 	int index = -1;
 	int state = 0;
+	char hostname[1024];
+	char kernel[1024];
+	char test[1024];
 
 	float start_secs = -1.0;
 
 	if ((fp = fopen(filename, "r")) == NULL) 
 		return -1;
+
+	hostname[0] = '\0';
+	kernel[0] = '\0';
+	test[0] = '\0';
 
 	while (fgets(buffer, sizeof(buffer), fp) != NULL) {
 		float hrs;
@@ -180,7 +197,7 @@ int data_parse(char *filename)
 
 		buffer[strlen(buffer)-1] = '\0';
 
-		sscanf(buffer + 12, "%f:%f:%f", &hrs, &min, &sec);
+		sscanf(buffer + 11, "%f:%f:%f", &hrs, &min, &sec);
 
 		sec = sec + (min * 60.0) + (hrs * 3600.0);
 		if (start_secs < 0.0)
@@ -193,17 +210,40 @@ int data_parse(char *filename)
 			ptr = strstr(ptr, " ");
 			
 			if (strstr(ptr, "TEST_CLIENT")) {
-				printf("Client: %s\n", ptr + 13);
+				if (!(opts & OPTS_EXTRACT_RESULTS))
+					printf("Client: %s\n", ptr + 13);
+				sscanf(ptr + 13, "%s %s", hostname, kernel);
 			}
 			if (strstr(ptr, "TEST_BEGIN")) {
-				printf("Test:   %s\n", ptr + 12);
+				if (!(opts & OPTS_EXTRACT_RESULTS))
+					printf("Test:   %s\n", ptr + 12);
+				sscanf(ptr + 12, "%s", test);
 				memset(data, 0, sizeof(data));
 				state |= STATE_TEST_BEGIN;
 			}
 			if (strstr(ptr, "TEST_END")) {
 				state &= ~STATE_TEST_BEGIN;
-				data_analyse(data, index+1);
+				if (opts & OPTS_EXTRACT_RESULTS) {
+					FILE *fp;
+					char name[PATH_MAX];
+					snprintf(name, sizeof(name), "%s-%s-%s.txt",
+						hostname,
+						kernel,
+						test);
+					if ((fp = fopen(name, "w"))) {
+						fprintf(fp, "%s %s, %s\n\n", hostname, kernel, test);
+						data_analyse(fp, data, index+1);
+						fclose(fp);
+					} else {
+						fprintf(stderr, "Cannot create %s\n", name);
+					}
+				} else {
+					data_analyse(stdout, data, index+1);
+				}
 				data_free(data, index+1);
+				hostname[0] = '\0';
+				kernel[0] = '\0';
+				test[0] = '\0';
 				index = -1;
 			}
 			if (strstr(ptr, "TEST_RUN_BEGIN")) {
@@ -257,11 +297,35 @@ int data_parse(char *filename)
 	return 0;
 }
 
+void show_help(char *name)
+{
+	fprintf(stderr, "Usage %s: [-h] [-x] logfile(s)\n", name);
+	fprintf(stderr, "\t-h help\n");
+	fprintf(stderr, "\t-x extract per-test results and each to a file.\n");
+}
+
 int main(int argc, char *argv[])
 {	
 	int i;
+	int opt;
 
-	for (i=1; i<=argc; i++)
+	while ((opt = getopt(argc, argv, "xh")) != -1) {
+		switch (opt) {
+		case 'h':
+			show_help(argv[0]);
+			exit(EXIT_SUCCESS);
+			break;
+		case 'x':
+			opts |= OPTS_EXTRACT_RESULTS;
+			break;
+		default:
+			show_help(argv[0]);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+
+	for (i=optind; i<=argc; i++)
 		data_parse(argv[i]);
 
 	exit(EXIT_SUCCESS);
