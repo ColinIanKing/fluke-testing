@@ -209,66 +209,67 @@ int data_parse(char *filename)
 		if (strstr(buffer+27, "TAG:")) {
 			char *ptr = buffer+32;
 			ptr = strstr(ptr, " ");
-			
-			if (strstr(ptr, "TEST_CLIENT")) {
-				char buf[64];
-				if (!(opts & OPTS_EXTRACT_RESULTS))
-					printf("Client: %s\n", ptr + 13);
-				sscanf(ptr + 13, "%s %s %s", hostname, kernel, buf);
-				if (strncmp(buf, "x86_64", 6) == 0)
-					arch = "amd64";
-				else if (strncmp(buf, "i", 1) == 0) 
-					arch = "i386";
-				else 
-					arch = "unknown";
-			}
-			if (strstr(ptr, "TEST_BEGIN")) {
-				if (!(opts & OPTS_EXTRACT_RESULTS))
-					printf("Test:   %s\n", ptr + 12);
-				sscanf(ptr + 12, "%s", test);
-				state |= STATE_TEST_BEGIN;
-			}
-			if (strstr(ptr, "TEST_END")) {
-				state &= ~STATE_TEST_BEGIN;
-				if (opts & OPTS_EXTRACT_RESULTS) {
-					FILE *fp;
-					char name[PATH_MAX];
-					snprintf(name, sizeof(name), "%s-%s-%s-%s.txt",
-						hostname, kernel, test, arch);
-					if ((fp = fopen(name, "w"))) {
-						fprintf(fp, "%s %s (%s), %s\n\n", hostname, kernel, arch, test);
-						data_analyse(fp, data, index+1);
-						fclose(fp);
+			if (ptr) {
+				if (strstr(ptr, "TEST_CLIENT")) {
+					char buf[64];
+					if (!(opts & OPTS_EXTRACT_RESULTS))
+						printf("Client: %s\n", ptr + 13);
+					sscanf(ptr + 13, "%s %s %s", hostname, kernel, buf);
+					if (strncmp(buf, "x86_64", 6) == 0)
+						arch = "amd64";
+					else if (strncmp(buf, "i", 1) == 0) 
+						arch = "i386";
+					else 
+						arch = "unknown";
+				}
+				if (strstr(ptr, "TEST_BEGIN")) {
+					if (!(opts & OPTS_EXTRACT_RESULTS))
+						printf("Test:   %s\n", ptr + 12);
+					sscanf(ptr + 12, "%s", test);
+					state |= STATE_TEST_BEGIN;
+				}
+				if (strstr(ptr, "TEST_END")) {
+					state &= ~STATE_TEST_BEGIN;
+					if (opts & OPTS_EXTRACT_RESULTS) {
+						FILE *fp;
+						char name[PATH_MAX];
+						snprintf(name, sizeof(name), "%s-%s-%s-%s.txt",
+							hostname, kernel, test, arch);
+						if ((fp = fopen(name, "w"))) {
+							fprintf(fp, "%s %s (%s), %s\n\n", hostname, kernel, arch, test);
+							data_analyse(fp, data, index+1);
+							fclose(fp);
+						} else {
+							fprintf(stderr, "Cannot create %s\n", name);
+						}
 					} else {
-						fprintf(stderr, "Cannot create %s\n", name);
+						data_analyse(stdout, data, index+1);
 					}
-				} else {
-					data_analyse(stdout, data, index+1);
+					data_free(data, index+1);
+					hostname[0] = '\0';
+					kernel[0] = '\0';
+					test[0] = '\0';
+					index = -1;
 				}
-				data_free(data, index+1);
-				hostname[0] = '\0';
-				kernel[0] = '\0';
-				test[0] = '\0';
-				index = -1;
-			}
-			if (strstr(ptr, "TEST_RUN_BEGIN")) {
-				state |= STATE_TEST_RUN_BEGIN;
-
-				index++;
-				if (index >= MAX_TEST_RUNS) {
-					fprintf(stderr, "Too many test runs, maximum allowed %d\n", MAX_TEST_RUNS);
-					break;
+				if (strstr(ptr, "TEST_RUN_BEGIN")) {
+					state |= STATE_TEST_RUN_BEGIN;
+	
+					index++;
+					if (index >= MAX_TEST_RUNS) {
+						fprintf(stderr, "Too many test runs, maximum allowed %d\n", MAX_TEST_RUNS);
+						break;
+					}
+					memset(&data[index], 0, sizeof(data_t));
+					data[index].head = NULL;
+					data[index].tail = NULL;
+					data[index].x_min = 1E6;
+					data[index].x_max = -1E6;
+					data[index].y_min = 1E6;
+					data[index].y_max = -1E6;
 				}
-				memset(&data[index], 0, sizeof(data_t));
-				data[index].head = NULL;
-				data[index].tail = NULL;
-				data[index].x_min = 1E6;
-				data[index].x_max = -1E6;
-				data[index].y_min = 1E6;
-				data[index].y_max = -1E6;
-			}
-			if (strstr(ptr, "TEST_RUN_END")) {
-				state &= ~STATE_TEST_RUN_BEGIN;
+				if (strstr(ptr, "TEST_RUN_END")) {
+					state &= ~STATE_TEST_RUN_BEGIN;
+				}
 			}
 		}
 
