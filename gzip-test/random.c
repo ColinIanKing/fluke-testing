@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 
 #define SAMPLES (1024 * 1024)
@@ -15,7 +16,7 @@ static inline unsigned long simple_random(void)
 
 int main(int argc, char **argv)
 {
-	static unsigned long buffer[SAMPLES];
+	static uint32_t buffer[SAMPLES];
 
 	int i;
 	int j;
