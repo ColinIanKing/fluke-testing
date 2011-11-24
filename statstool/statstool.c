@@ -226,7 +226,6 @@ int data_parse(char *filename)
 				if (!(opts & OPTS_EXTRACT_RESULTS))
 					printf("Test:   %s\n", ptr + 12);
 				sscanf(ptr + 12, "%s", test);
-				memset(data, 0, sizeof(data));
 				state |= STATE_TEST_BEGIN;
 			}
 			if (strstr(ptr, "TEST_END")) {
@@ -260,14 +259,13 @@ int data_parse(char *filename)
 					fprintf(stderr, "Too many test runs, maximum allowed %d\n", MAX_TEST_RUNS);
 					break;
 				}
-
+				memset(&data[index], 0, sizeof(data_t));
 				data[index].head = NULL;
 				data[index].tail = NULL;
 				data[index].x_min = 1E6;
 				data[index].x_max = -1E6;
 				data[index].y_min = 1E6;
 				data[index].y_max = -1E6;
-
 			}
 			if (strstr(ptr, "TEST_RUN_END")) {
 				state &= ~STATE_TEST_RUN_BEGIN;
@@ -292,7 +290,6 @@ int data_parse(char *filename)
 					data[index].y_min = p->y;
 				if (p->y > data[index].y_max)
 					data[index].y_max = p->y;
-
 				data_append_point(&data[index], p);
 			}
 		}
@@ -331,7 +328,7 @@ int main(int argc, char *argv[])
 	}
 
 
-	for (i=optind; i<=argc; i++)
+	for (i=optind; i<argc; i++)
 		data_parse(argv[i]);
 
 	exit(EXIT_SUCCESS);
