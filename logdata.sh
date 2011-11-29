@@ -19,6 +19,10 @@ fi
 SAMPLES=10000000
 LOG=samples.log
 
+if [ $# -eq 1 ]; then
+	LOG=$1
+fi
+
 if [ ! -d instrument-lib ]; then
 	git clone git://kernel.ubuntu.com/sconklin/instrument-lib
 fi
