@@ -1,0 +1,27 @@
+Description: Move test and friends to /bin.
+Author: Colin Watson <cjwatson@ubuntu.com>
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/145382
+Forwarded: not-needed
+
+--- a/include/applets.src.h
++++ b/include/applets.src.h
+@@ -63,8 +63,8 @@
+ 
+ 
+ INSERT
+-IF_TEST(APPLET_NOFORK([,  test, _BB_DIR_USR_BIN, _BB_SUID_DROP, test))
+-IF_TEST(APPLET_NOFORK([[, test, _BB_DIR_USR_BIN, _BB_SUID_DROP, test))
++IF_TEST(APPLET_NOFORK([,  test, _BB_DIR_BIN, _BB_SUID_DROP, test))
++IF_TEST(APPLET_NOFORK([[, test, _BB_DIR_BIN, _BB_SUID_DROP, test))
+ IF_ACPID(APPLET(acpid, _BB_DIR_SBIN, _BB_SUID_DROP))
+ IF_ADDGROUP(APPLET(addgroup, _BB_DIR_BIN, _BB_SUID_DROP))
+ IF_ADDUSER(APPLET(adduser, _BB_DIR_BIN, _BB_SUID_DROP))
+@@ -355,7 +355,7 @@
+ IF_TEE(APPLET(tee, _BB_DIR_USR_BIN, _BB_SUID_DROP))
+ IF_TELNET(APPLET(telnet, _BB_DIR_USR_BIN, _BB_SUID_DROP))
+ IF_TELNETD(APPLET(telnetd, _BB_DIR_USR_SBIN, _BB_SUID_DROP))
+-IF_TEST(APPLET_NOFORK(test, test, _BB_DIR_USR_BIN, _BB_SUID_DROP, test))
++IF_TEST(APPLET_NOFORK(test, test, _BB_DIR_BIN, _BB_SUID_DROP, test))
+ #if ENABLE_FEATURE_TFTP_GET || ENABLE_FEATURE_TFTP_PUT
+ IF_TFTP(APPLET(tftp, _BB_DIR_USR_BIN, _BB_SUID_DROP))
+ IF_TFTPD(APPLET(tftpd, _BB_DIR_USR_BIN, _BB_SUID_DROP))

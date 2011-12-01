@@ -1,0 +1,10 @@
+shell-ash-export-HOME.patch
+applets-fallback.patch
+version.patch
+init-console.patch
+make_gen_build_files_skip_quilt.patch
+u-mount-FreeBSD-support.patch
+swaponoff-FreeBSD-support.patch
+dirname-basename-skip-doubledash.diff
+test-bin.patch
+static-sh-alias.patch

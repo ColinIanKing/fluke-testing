@@ -1,0 +1,18 @@
+This file contains some numbers about sizes
+of udeb build with various options enabled/disabled.
+
+20110317 mjt i386 SHA1SUM SHA512SUM
+   text    data     bss     dec     hex filename
+ 222902    1494    8684  233080   38e78 busybox+sha256
+ 223010    1494    8684  233188   38ee4 busybox+sha1+sha256
+ 224694    1494    8684  234872   39578 busybox+sha1+sha256+sha512
+Conclusion: enable all sha* variants (after enabling sha256 which
+is needed for the installer). The tables in libbb/hash_md5_sha.c
+are shared anyway so half of sha512+sha1 is already there.
+
+20110317 mjt i386 MKTEMP
+   text    data     bss     dec     hex filename
+ 222902    1494    8684  233080   38e78 busybox
+ 223202    1498    8684  233384   38fa8 busybox+mktemp
+Conclusion: enable MKTEMP applet.
+

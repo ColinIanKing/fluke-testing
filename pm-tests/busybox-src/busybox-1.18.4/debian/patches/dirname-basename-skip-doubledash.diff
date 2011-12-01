@@ -1,0 +1,31 @@
+https://bugs.busybox.net/show_bug.cgi?id=3463
+http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=580492
+
+diff --git a/coreutils/basename.c b/coreutils/basename.c
+index d441247..c16ee37 100644
+--- a/coreutils/basename.c
++++ b/coreutils/basename.c
+@@ -38,6 +38,10 @@ int basename_main(int argc, char **argv)
+ 	size_t m, n;
+ 	char *s;
+ 
++	if (argc > 1 && strcmp(argv[1], "--") == 0) {
++		++argv; --argc;
++	}
++
+ 	if ((unsigned)(argc-2) >= 2) {
+ 		bb_show_usage();
+ 	}
+diff --git a/coreutils/dirname.c b/coreutils/dirname.c
+index 246946e..f8d052e 100644
+--- a/coreutils/dirname.c
++++ b/coreutils/dirname.c
+@@ -17,6 +17,8 @@
+ int dirname_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
+ int dirname_main(int argc UNUSED_PARAM, char **argv)
+ {
++	if (argv[1] && strcmp(argv[1], "--") == 0)
++		++argv;
+ 	puts(dirname(single_argv(argv)));
+ 	return fflush_all();
+ }

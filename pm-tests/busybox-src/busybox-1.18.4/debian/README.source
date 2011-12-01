@@ -1,0 +1,33 @@
+This package is uploaded in the regular "3.0 (quilt)" format to the Debian
+archive but the packaging is maintained in git.
+
+You may use the git-buildpackage command and package to work from a git
+checkout of the packaging.
+
+Start by putting the upstream .orig.tar.bz2 in the parent directory, unpack its contents into your checkout:
+    tar --strip-components=1 -xvf ../busybox_*.orig.tar.bz2
+then build the package with:
+    git-buildpackage
+the above command will take debuild and dpkg-buildpackage flags by default.
+
+Any unapplied patch will be applied before the build (by dpkg-source); you can
+manage the patch series with quilt.
+
+After committing an upload to the packaging repository, tag the upload with:
+    git-buildpackage --git-tag-only
+you can build and tag in the same run with --git-tag.
+
+== direct builds ==
+
+Instead of using git-buildpackage, you may just use debuild -i or
+dpkg-buildpackage -i to build the source once you have unpacked the upstream
+sources in a checkout of the packaging.
+
+Make sure you tag the uploads with "git tag debian/1.2-3".
+
+== direct changes to the upstream sources ==
+
+Direct changes to the upstream sources will be recorded by dpkg-source into a
+debian/patches/debian-changes-xyz patch; see the dpkg-source "local-options"
+file to disable this behavior.
+

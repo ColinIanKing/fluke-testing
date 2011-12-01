@@ -1,0 +1,24 @@
+Description: Add static-sh alias name for ash.
+Author: Michael Vogt <michael.vogt@ubuntu.com>
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/505887
+Forwarded: not-needed
+
+--- a/shell/ash.c
++++ b/shell/ash.c
+@@ -75,6 +75,7 @@
+ //applet:IF_ASH(APPLET(ash, _BB_DIR_BIN, _BB_SUID_DROP))
+ //applet:IF_FEATURE_SH_IS_ASH(APPLET_ODDNAME(sh, ash, _BB_DIR_BIN, _BB_SUID_DROP, sh))
+ //applet:IF_FEATURE_BASH_IS_ASH(APPLET_ODDNAME(bash, ash, _BB_DIR_BIN, _BB_SUID_DROP, bash))
++//applet:IF_FEATURE_SH_STANDALONE(APPLET_ODDNAME(static-sh, ash, _BB_DIR_BIN, _BB_SUID_DROP, static_sh))
+ 
+ //kbuild:lib-$(CONFIG_ASH) += ash.o ash_ptr_hack.o shell_common.o
+ //kbuild:lib-$(CONFIG_ASH_RANDOM_SUPPORT) += random.o
+@@ -189,6 +190,8 @@
+ //usage:#define sh_full_usage ""
+ //usage:#define bash_trivial_usage NOUSAGE_STR
+ //usage:#define bash_full_usage ""
++//usage:#define static_sh_trivial_usage NOUSAGE_STR
++//usage:#define static_sh_full_usage ""
+ 
+ 
+ /* ============ Hash table sizes. Configurable. */
