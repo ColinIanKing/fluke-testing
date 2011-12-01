@@ -36,7 +36,7 @@ do
 			if [ -x $J ]; then
 				$SENDTAG $LOG_HOST $TAGPORT "TEST_CLIENT $MACHINE_ID"
 				$SENDTAG $LOG_HOST $TAGPORT "TEST_BEGIN $J"
-				for K in {1..$TEST_ITERATIONS}
+				for K in $(seq $TEST_ITERATIONS)
 				do
 					#
 					# Flush dirty pages and drop caches
