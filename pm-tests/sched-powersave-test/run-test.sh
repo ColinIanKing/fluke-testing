@@ -1,7 +1,6 @@
 run_test()
 {
-	chmod -x /usr/lib/pm-utils/power.d/*
-	chmod +x /usr/lib/pm-utils/power.d/sched-powersave
+	/usr/lib/pm-utils/power.d/sched-powersave $1
 	
 	pushd ../busybox-src/busybox-1.18.4 >& /dev/null
 	${SENDTAG_BEGIN}
@@ -11,5 +10,5 @@ run_test()
 	${SENDTAG_END}
 	popd >& /dev/null
 
-	chmod +x /usr/lib/pm-utils/power.d/*
+	/usr/lib/pm-utils/power.d/sched-powersave false
 }
