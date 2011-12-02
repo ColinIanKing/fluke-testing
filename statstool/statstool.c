@@ -28,7 +28,7 @@
 #include <math.h>
 #include <time.h>
 
-#define MAX_TEST_RUNS		(16)
+#define MAX_TEST_RUNS		(128)
 
 #define STATE_TEST_BEGIN	(0x0000001)
 #define STATE_TEST_RUN_BEGIN	(0x0000002)
@@ -56,7 +56,7 @@ typedef struct {
 
 	point_t *head;		/* Point data list head */
 	point_t *tail;		/* Point data list tail */
-	
+
 	double stats[DATA_STATS_MAX];
 
 	int samples;		/* Number of samples */
@@ -64,13 +64,12 @@ typedef struct {
 
 static int opts;
 
-double parse_timestamp(char *buffer)
+static inline double parse_timestamp(const char *buffer)
 {
-	/* Time stamp in formate: 2011-12-02T01:03:41.720551 */
-
 	struct tm tm;
 	double seconds;
 
+	/* Time stamp in format: 2011-12-02T01:03:41.720551 */
 	sscanf(buffer, "%d-%d-%d%*c%d:%d:%lf",
 		&tm.tm_year, &tm.tm_year, &tm.tm_mday,
 		&tm.tm_hour, &tm.tm_min, &seconds);
@@ -80,7 +79,7 @@ double parse_timestamp(char *buffer)
 	return seconds - tm.tm_sec + (unsigned int)mktime(&tm);
 }
 
-void data_append_point(data_t *data, point_t *p)
+static void data_append_point(data_t *data, point_t *p)
 {
 	if (data->head == NULL) {
 		data->head = p;
@@ -92,18 +91,13 @@ void data_append_point(data_t *data, point_t *p)
 	data->samples++;
 }
 
-point_t *data_next_point(point_t *p)
-{
-	return p->next;
-}
-
-void data_free(data_t *data, int n)
+static void data_free(data_t *data, const int n)
 {
 	int i;
 
 	for (i=0; i<n; i++) {
 		point_t *p = data[i].head;
-		
+
 		while (p) {
 			point_t *p_next = p->next;
 			free(p);
@@ -112,7 +106,7 @@ void data_free(data_t *data, int n)
 	}
 }
 
-void calc_average_stddev(data_t *data, int n, double *average, double *stddev)
+static void calc_average_stddev(const data_t *data, const int n, double *average, double *stddev)
 {
 	int i;
 	int j;
@@ -123,7 +117,7 @@ void calc_average_stddev(data_t *data, int n, double *average, double *stddev)
 		for (i=0; i<n; i++)
 			total += data[i].stats[j];
 		average[j] = total / (double)n;
-	
+
 		total = 0.0;
 		for (i=0; i<n; i++) {
 			double diff = (data[i].stats[j]) - average[j];
@@ -134,7 +128,7 @@ void calc_average_stddev(data_t *data, int n, double *average, double *stddev)
 	}
 }
 
-void data_analyse(FILE *fp, data_t *data, int n)
+static void data_analyse(FILE *fp, data_t *data, const int n)
 {
 	int i;
 	double average[DATA_STATS_MAX];
@@ -151,11 +145,7 @@ void data_analyse(FILE *fp, data_t *data, int n)
 			if (p->next) {
 				double dt = p->next->x - p->x;
 				double y  = ((p->y + p->next->y) / 2.0);
-				/* Midnight wrap */
-				if (dt < 0)
-					dt += (24.0 * 60.0 * 60.0);
 				data[i].stats[DATA_STATS_INTEGRAL] += (y * dt);
-
 			}
 			p = p->next;
 		}
@@ -184,7 +174,7 @@ void data_analyse(FILE *fp, data_t *data, int n)
 }
 
 
-int data_parse(char *filename)
+static int data_parse(const char *filename)
 {
 	FILE *fp;
 	char buffer[4096];
@@ -198,7 +188,7 @@ int data_parse(char *filename)
 
 	double start_secs = -1.0;
 
-	if ((fp = fopen(filename, "r")) == NULL) 
+	if ((fp = fopen(filename, "r")) == NULL)
 		return -1;
 
 	hostname[0] = '\0';
@@ -215,7 +205,7 @@ int data_parse(char *filename)
 		if (start_secs < 0.0)
 			start_secs = sec;
 		sec = sec - start_secs;
-		
+
 		if (strstr(buffer+27, "TAG:")) {
 			char *ptr = buffer+32;
 			char *s;
@@ -227,9 +217,9 @@ int data_parse(char *filename)
 				sscanf(s + 12, "%s %s %s", hostname, kernel, buf);
 				if (strncmp(buf, "x86_64", 6) == 0)
 					arch = "amd64";
-				else if (strncmp(buf, "i", 1) == 0) 
+				else if (strncmp(buf, "i", 1) == 0)
 					arch = "i386";
-				else 
+				else
 					arch = "unknown";
 			}
 
@@ -266,7 +256,7 @@ int data_parse(char *filename)
 
 			if (strstr(ptr, "TEST_RUN_BEGIN")) {
 				state |= STATE_TEST_RUN_BEGIN;
-	
+
 				index++;
 				if (index >= MAX_TEST_RUNS) {
 					fprintf(stderr, "Too many test runs, maximum allowed %d\n", MAX_TEST_RUNS);
@@ -307,14 +297,13 @@ int data_parse(char *filename)
 				data_append_point(&data[index], p);
 			}
 		}
-
 	}
 	fclose(fp);
 
 	return 0;
 }
 
-void show_help(char *name)
+static void show_help(const char *name)
 {
 	fprintf(stderr, "Usage %s: [-h] [-x] logfile(s)\n", name);
 	fprintf(stderr, "\t-h help\n");
@@ -322,7 +311,7 @@ void show_help(char *name)
 }
 
 int main(int argc, char *argv[])
-{	
+{
 	int i;
 	int opt;
 
@@ -340,7 +329,6 @@ int main(int argc, char *argv[])
 			exit(EXIT_FAILURE);
 		}
 	}
-
 
 	for (i=optind; i<argc; i++)
 		data_parse(argv[i]);
