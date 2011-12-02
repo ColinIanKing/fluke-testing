@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export PM_FUNCTIONS=/usr/lib/pm-utils/pm-functions
 export SLEEP_DURATION=60
 SETTLE_DURATION=10
 TEST_ITERATIONS=5
