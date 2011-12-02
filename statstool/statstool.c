@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <math.h>
+#include <time.h>
 
 #define MAX_TEST_RUNS		(16)
 
@@ -42,26 +43,42 @@
 /* Single point of data, optionally a tag */
 typedef struct point_t {
 	struct point_t *next;
-	float x;
-	float y;
+	double x;
+	double y;
 } point_t;
 
 typedef struct {
 	/* Data set min/max */
-	float x_min;
-	float x_max;
-	float y_min;
-	float y_max;
+	double x_min;
+	double x_max;
+	double y_min;
+	double y_max;
 
 	point_t *head;		/* Point data list head */
 	point_t *tail;		/* Point data list tail */
 	
-	float stats[DATA_STATS_MAX];
+	double stats[DATA_STATS_MAX];
 
 	int samples;		/* Number of samples */
 } data_t;
 
 static int opts;
+
+double parse_timestamp(char *buffer)
+{
+	/* Time stamp in formate: 2011-12-02T01:03:41.720551 */
+
+	struct tm tm;
+	double seconds;
+
+	sscanf(buffer, "%d-%d-%d%*c%d:%d:%lf",
+		&tm.tm_year, &tm.tm_year, &tm.tm_mday,
+		&tm.tm_hour, &tm.tm_min, &seconds);
+
+	tm.tm_sec = (int)seconds;
+
+	return seconds - tm.tm_sec + (unsigned int)mktime(&tm);
+}
 
 void data_append_point(data_t *data, point_t *p)
 {
@@ -95,33 +112,33 @@ void data_free(data_t *data, int n)
 	}
 }
 
-void calc_average_stddev(data_t *data, int n, float *average, float *stddev)
+void calc_average_stddev(data_t *data, int n, double *average, double *stddev)
 {
 	int i;
 	int j;
-	float total;
+	double total;
 
 	for (j=0; j<DATA_STATS_MAX; j++) {
 		total = 0.0;
 		for (i=0; i<n; i++)
 			total += data[i].stats[j];
-		average[j] = total / (float)n;
+		average[j] = total / (double)n;
 	
 		total = 0.0;
 		for (i=0; i<n; i++) {
-			float diff = (data[i].stats[j]) - average[j];
+			double diff = (data[i].stats[j]) - average[j];
 			diff = diff * diff;
 			total += diff;
 		}
-		stddev[j] = sqrt(total / (float)n);
+		stddev[j] = sqrt(total / (double)n);
 	}
 }
 
 void data_analyse(FILE *fp, data_t *data, int n)
 {
 	int i;
-	float average[DATA_STATS_MAX];
-	float stddev[DATA_STATS_MAX];
+	double average[DATA_STATS_MAX];
+	double stddev[DATA_STATS_MAX];
 
 	fprintf(fp, "                Integral  Duration   Average\n");
 	fprintf(fp, "                           (Secs)     (mA)\n");
@@ -132,13 +149,11 @@ void data_analyse(FILE *fp, data_t *data, int n)
 
 		while (p) {
 			if (p->next) {
-				float dt = p->next->x - p->x;
-				float y  = ((p->y + p->next->y) / 2.0);
+				double dt = p->next->x - p->x;
+				double y  = ((p->y + p->next->y) / 2.0);
 				/* Midnight wrap */
-				/*
 				if (dt < 0)
 					dt += (24.0 * 60.0 * 60.0);
-				*/
 				data[i].stats[DATA_STATS_INTEGRAL] += (y * dt);
 
 			}
@@ -181,7 +196,7 @@ int data_parse(char *filename)
 	char test[1024];
 	char *arch;
 
-	float start_secs = -1.0;
+	double start_secs = -1.0;
 
 	if ((fp = fopen(filename, "r")) == NULL) 
 		return -1;
@@ -191,19 +206,14 @@ int data_parse(char *filename)
 	test[0] = '\0';
 
 	while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-		float hrs;
-		float min;
-		float sec;
+		double sec;
 		point_t *p;
 
 		buffer[strlen(buffer)-1] = '\0';
 
-		sscanf(buffer + 11, "%f:%f:%f", &hrs, &min, &sec);
-
-		sec = sec + (min * 60.0) + (hrs * 3600.0);
+		sec = parse_timestamp(buffer);
 		if (start_secs < 0.0)
 			start_secs = sec;
-
 		sec = sec - start_secs;
 		
 		if (strstr(buffer+27, "TAG:")) {
@@ -283,7 +293,7 @@ int data_parse(char *filename)
 					break;
 				}
 				p->x = sec;
-				sscanf(buffer + 34, "%f", &p->y);
+				sscanf(buffer + 34, "%lf", &p->y);
 
 				if (sec < data[index].x_min)
 					data[index].x_min = sec;

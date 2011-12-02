@@ -1,6 +1,6 @@
 CFLAGS += -Wall
 
-statstool: statstool.o
+statstool: statstool.o Makefile
 	$(CC) $< -lm -o $@
 
 clean:
