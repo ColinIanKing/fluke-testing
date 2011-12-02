@@ -2,5 +2,4 @@
 
 . run-test.sh
 
-pm-powersave false
-run_test_idle
+run_test_idle false
