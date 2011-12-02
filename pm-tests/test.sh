@@ -10,7 +10,6 @@ export AC_POWER_ON=0
 export AC_POWER_OFF=1
 
 SETTLE_DURATION=10
-TEST_ITERATIONS=5
 MACHINE_ID=`uname -r -m -n`
 
 if [ -z $LOG_HOST ]; then
@@ -49,9 +48,9 @@ do
 			if [ -x $J ]; then
 				$SENDTAG $LOG_HOST $TAGPORT "TEST_CLIENT $MACHINE_ID"
 				$SENDTAG $LOG_HOST $TAGPORT "TEST_BEGIN $J"
-				for K in $(seq $TEST_ITERATIONS)
+				for K in $(seq $ITERATIONS_PER_TEST)
 				do
-					echo "SUBTEST: $J, $K of $TEST_ITERATIONS"
+					echo "SUBTEST: $J, $K of $ITERATIONS_PER_TEST"
 					#
 					# Flush dirty pages and drop caches
 					#
