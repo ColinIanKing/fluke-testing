@@ -1,0 +1,14 @@
+#!/bin/bash
+#
+# 
+# Returns 0 (true) if on AC power
+#         1 (false) if not on AC power
+#         255 (false) if can't tell
+#
+if [ -n "$AC_POWER_SETTING"  ]; then
+	#echo `date` $AC_POWER_SETTING >> /tmp/on_ac_power
+	exit $AC_POWER_SETTING
+else
+	#echo `date` 255 >> /tmp/on_ac_power
+	exit 255
+fi
