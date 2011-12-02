@@ -1,11 +1,10 @@
 run_test()
 {
-	chmod -x /usr/lib/pm-utils/power.d/*
-	chmod +x /usr/lib/pm-utils/power.d/wireless
+	/usr/lib/pm-utils/power.d/wireless $1
 
 	${SENDTAG_BEGIN}
 	sleep ${SLEEP_DURATION}
 	${SENDTAG_END}
 
-	chmod +x /usr/lib/pm-utils/power.d/*
+	/usr/lib/pm-utils/power.d/wireless false
 }
