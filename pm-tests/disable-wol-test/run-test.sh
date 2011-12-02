@@ -1,11 +1,13 @@
 run_test()
 {
-	chmod -x /usr/lib/pm-utils/power.d/*
-	chmod +x /usr/lib/pm-utils/power.d/disable_wol
 	
 	${SENDTAG_BEGIN}
 	sleep ${SLEEP_DURATION}
+	/usr/lib/pm-utils/power.d/disable_wol $1
 	${SENDTAG_END}
 
-	chmod +x /usr/lib/pm-utils/power.d/*
+	#
+	# And disable afterwards
+	#
+	/usr/lib/pm-utils/power.d/disable_wol false
 }

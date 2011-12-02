@@ -7,7 +7,6 @@
 #
 which ethtool > /dev/null
 if [ $? -eq 0 ]; then
-	pm-powersave true
-	run_test
+	run_test true
 fi
 
