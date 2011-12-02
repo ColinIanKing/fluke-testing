@@ -87,7 +87,7 @@ fi
 
 gconftool-2 --type bool --set /apps/gnome-power-manager/backlight/idle_dim_battery false
 
-for I in all*-test
+for I in *-test
 do
 	if [ -d $I ]; then
 		echo "TEST: $I"
