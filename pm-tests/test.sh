@@ -2,6 +2,13 @@
 
 export PM_FUNCTIONS=/usr/lib/pm-utils/pm-functions
 export SLEEP_DURATION=60
+export PATH=`pwd`:$PATH
+#
+# Settings of on_ac_power return
+#
+export AC_POWER_ON=0
+export AC_POWER_OFF=1
+
 SETTLE_DURATION=10
 TEST_ITERATIONS=5
 MACHINE_ID=`uname -r -m -n`
@@ -44,6 +51,7 @@ do
 				$SENDTAG $LOG_HOST $TAGPORT "TEST_BEGIN $J"
 				for K in $(seq $TEST_ITERATIONS)
 				do
+					echo "SUBTEST: $J, $K of $TEST_ITERATIONS"
 					#
 					# Flush dirty pages and drop caches
 					#
