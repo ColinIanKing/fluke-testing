@@ -24,6 +24,11 @@ if [ ! -d instrument-lib ]; then
         git clone git://kernel.ubuntu.com/sconklin/instrument-lib
 fi
 
+which ethtool > /dev/null
+if [ $? -ne 0 ]; then
+	apt-get install ethtool
+fi
+
 gconftool-2 --type bool --set /apps/gnome-power-manager/backlight/idle_dim_battery false
 
 for I in *-test
