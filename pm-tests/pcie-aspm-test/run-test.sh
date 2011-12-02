@@ -1,11 +1,10 @@
 run_test()
 {
-	chmod -x /usr/lib/pm-utils/power.d/*
-	chmod +x /usr/lib/pm-utils/power.d/pcie_aspm
+	/usr/lib/pm-utils/power.d/pcie_aspm $1
 	
 	${SENDTAG_BEGIN}
 	sleep ${SLEEP_DURATION}
 	${SENDTAG_END}
 
-	chmod +x /usr/lib/pm-utils/power.d/*
+	/usr/lib/pm-utils/power.d/pcie_aspm false
 }
