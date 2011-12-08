@@ -39,6 +39,8 @@
 #define DATA_STATS_MAX		3
 
 #define OPTS_EXTRACT_RESULTS	(0x0000001)
+#define OPTS_TABBED_COLUMNS	(0x0000002)
+#define OPTS_STATS_ALL_SAMPLES	(0x0000004)
 
 /* Single point of data, optionally a tag */
 typedef struct point_t {
@@ -134,8 +136,13 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 	double average[DATA_STATS_MAX];
 	double stddev[DATA_STATS_MAX];
 
-	fprintf(fp, "                Integral  Duration   Average\n");
-	fprintf(fp, "                           (Secs)     (mA)\n");
+	if (opts & OPTS_TABBED_COLUMNS) {
+		fprintf(fp, "\tIntegral\tDuration\t\n");
+		fprintf(fp, "\t\t(Secs)\t(mA)\n");
+	} else {
+		fprintf(fp, "                Integral  Duration   Average\n");
+		fprintf(fp, "                           (Secs)     (mA)\n");
+	}
 
 	for (i=0; i<n; i++) {
 		point_t *p = data[i].head;
@@ -153,7 +160,10 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 		data[i].stats[DATA_STATS_DURATION] = data[i].x_max - data[i].x_min;
 		data[i].stats[DATA_STATS_AVERAGE] = data[i].stats[DATA_STATS_INTEGRAL] / data[i].stats[DATA_STATS_DURATION];
 
-		fprintf(fp, "Test run %2d     %8.4f    %7.3f  %8.4f\n",
+		fprintf(fp, 
+			opts & OPTS_TABBED_COLUMNS ?
+			"Test run %2d\t%8.4f\t%7.3f\t%8.4f\n" :
+			"Test run %2d     %8.4f    %7.3f  %8.4f\n",
 			i + 1,
 			data[i].stats[DATA_STATS_INTEGRAL],
 			data[i].stats[DATA_STATS_DURATION],
@@ -161,18 +171,54 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 	}
 
 	calc_average_stddev(data, n, average, stddev);
-	fprintf(fp, "-------         --------    -------  --------\n");
-	fprintf(fp, "Average         %8.4f    %7.3f  %8.4f\n",
-			average[DATA_STATS_INTEGRAL],
-			average[DATA_STATS_DURATION],
-			1000.0 * average[DATA_STATS_AVERAGE]);
-	fprintf(fp, "Std.Dev.        %8.4f    %7.3f  %8.4f\n",
-			stddev[DATA_STATS_INTEGRAL],
-			stddev[DATA_STATS_DURATION],
-			1000.0 * stddev[DATA_STATS_AVERAGE]);
-	fprintf(fp, "-------         --------    -------  --------\n\n");
+	if (! (opts & OPTS_TABBED_COLUMNS))
+		fprintf(fp, "-------         --------    -------  --------\n");
+	fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
+		"Average\t%8.4f\t%7.3f\t%8.4f\n" :
+		"Average         %8.4f    %7.3f  %8.4f\n",
+		average[DATA_STATS_INTEGRAL],
+		average[DATA_STATS_DURATION],
+		1000.0 * average[DATA_STATS_AVERAGE]);
+	fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
+		"Std.Dev.\t%8.4f\t%7.3f\t%8.4f\n" :
+		"Std.Dev.        %8.4f    %7.3f  %8.4f\n",
+		stddev[DATA_STATS_INTEGRAL],
+		stddev[DATA_STATS_DURATION],
+		1000.0 * stddev[DATA_STATS_AVERAGE]);
+	if (!(opts & OPTS_TABBED_COLUMNS))
+		fprintf(fp, "-------         --------    -------  --------");
+
+	fprintf(fp, "\n\n");
 }
 
+static int test_run_begin(int *state, int *index, data_t *data)
+{
+	int i = (*index) + 1;
+
+	if (i >= MAX_TEST_RUNS) {
+		fprintf(stderr, "Too many test runs, maximum allowed %d\n", MAX_TEST_RUNS);
+		return -1;
+	}
+	*index = i;
+
+	*state |= STATE_TEST_RUN_BEGIN;
+	data = &data[i];
+
+	memset(data, 0, sizeof(data_t));
+	data->head = NULL;
+	data->tail = NULL;
+	data->x_min = 1E6;
+	data->x_max = -1E6;
+	data->y_min = 1E6;
+	data->y_max = -1E6;
+
+	return 0;
+}
+
+static inline void test_run_end(int *state)
+{
+	*state &= ~STATE_TEST_RUN_BEGIN;
+}
 
 static int data_parse(const char *filename)
 {
@@ -213,7 +259,8 @@ static int data_parse(const char *filename)
 			if ((s = strstr(ptr, "TEST_CLIENT")) != NULL) {
 				char buf[64];
 				if (!(opts & OPTS_EXTRACT_RESULTS))
-					printf("Client: %s\n", s + 12);
+					printf("%sClient: %s\n",
+						opts & OPTS_TABBED_COLUMNS ? "\t" : "", s + 12);
 				sscanf(s + 12, "%s %s %s", hostname, kernel, buf);
 				if (strncmp(buf, "x86_64", 6) == 0)
 					arch = "amd64";
@@ -225,7 +272,8 @@ static int data_parse(const char *filename)
 
 			if ((s = strstr(ptr, "TEST_BEGIN")) != NULL) {
 				if (!(opts & OPTS_EXTRACT_RESULTS))
-					printf("Test:   %s\n", ptr + 11);
+					printf("%sTest:   %s\n",
+						opts & OPTS_TABBED_COLUMNS ? "\t" : "", ptr + 11);
 				sscanf(ptr + 11, "%s", test);
 				state |= STATE_TEST_BEGIN;
 			}
@@ -233,14 +281,14 @@ static int data_parse(const char *filename)
 			if (strstr(ptr, "TEST_END")) {
 				state &= ~STATE_TEST_BEGIN;
 				if (opts & OPTS_EXTRACT_RESULTS) {
-					FILE *fp;
+					FILE *output;
 					char name[PATH_MAX];
 					snprintf(name, sizeof(name), "%s-%s-%s-%s.txt",
 						hostname, kernel, test, arch);
-					if ((fp = fopen(name, "w"))) {
-						fprintf(fp, "%s %s (%s), %s\n\n", hostname, kernel, arch, test);
-						data_analyse(fp, data, index+1);
-						fclose(fp);
+					if ((output = fopen(name, "w"))) {
+						fprintf(output, "%s %s (%s), %s\n\n", hostname, kernel, arch, test);
+						data_analyse(output, data, index+1);
+						fclose(output);
 					} else {
 						fprintf(stderr, "Cannot create %s\n", name);
 					}
@@ -254,29 +302,19 @@ static int data_parse(const char *filename)
 				index = -1;
 			}
 
-			if (strstr(ptr, "TEST_RUN_BEGIN")) {
-				state |= STATE_TEST_RUN_BEGIN;
+			if (strstr(ptr, "TEST_RUN_BEGIN"))
+				test_run_begin(&state, &index, data);
 
-				index++;
-				if (index >= MAX_TEST_RUNS) {
-					fprintf(stderr, "Too many test runs, maximum allowed %d\n", MAX_TEST_RUNS);
-					break;
-				}
-				memset(&data[index], 0, sizeof(data_t));
-				data[index].head = NULL;
-				data[index].tail = NULL;
-				data[index].x_min = 1E6;
-				data[index].x_max = -1E6;
-				data[index].y_min = 1E6;
-				data[index].y_max = -1E6;
-			}
-
-			if (strstr(ptr, "TEST_RUN_END")) {
-				state &= ~STATE_TEST_RUN_BEGIN;
-			}
+			if (strstr(ptr, "TEST_RUN_END"))
+				test_run_end(&state);
 		}
 
 		if (strstr(buffer+27, "SAMPLE:")) {
+			if ((opts & OPTS_STATS_ALL_SAMPLES) && (!(state & STATE_TEST_RUN_BEGIN))) {
+				printf("HERE\n");
+				test_run_begin(&state, &index, data);
+			}
+
 			if (state & STATE_TEST_RUN_BEGIN) {
 				if ((p = calloc(1, sizeof(point_t))) == NULL) {
 					fprintf(stderr, "Out of memory allocating a data point\n");
@@ -300,14 +338,21 @@ static int data_parse(const char *filename)
 	}
 	fclose(fp);
 
+	if ((opts & OPTS_STATS_ALL_SAMPLES) && (state & STATE_TEST_RUN_BEGIN)) {
+		test_run_end(&state);
+		data_analyse(stdout, data, index+1);
+	}
+
 	return 0;
 }
 
 static void show_help(const char *name)
 {
-	fprintf(stderr, "Usage %s: [-h] [-x] logfile(s)\n", name);
+	fprintf(stderr, "Usage %s: [-h] [-x] [-t] [-s] logfile(s)\n", name);
 	fprintf(stderr, "\t-h help\n");
 	fprintf(stderr, "\t-x extract per-test results and each to a file.\n");
+	fprintf(stderr, "\t-t dump tabbed columns for importing data into a spreadsheet.\n");
+	fprintf(stderr, "\t-s run stats on all the log, ignore any TAGs.\n");
 }
 
 int main(int argc, char *argv[])
@@ -315,7 +360,7 @@ int main(int argc, char *argv[])
 	int i;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "xh")) != -1) {
+	while ((opt = getopt(argc, argv, "xhts")) != -1) {
 		switch (opt) {
 		case 'h':
 			show_help(argv[0]);
@@ -323,6 +368,12 @@ int main(int argc, char *argv[])
 			break;
 		case 'x':
 			opts |= OPTS_EXTRACT_RESULTS;
+			break;
+		case 't':
+			opts |= OPTS_TABBED_COLUMNS;
+			break;
+		case 's':
+			opts |= OPTS_STATS_ALL_SAMPLES;
 			break;
 		default:
 			show_help(argv[0]);
