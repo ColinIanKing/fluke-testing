@@ -321,18 +321,18 @@ static int data_parse(const char *filename)
 					break;
 				}
 				p->x = sec;
-				sscanf(buffer + 34, "%lf", &p->y);
-
-				if (sec < data[index].x_min)
-					data[index].x_min = sec;
-				if (sec > data[index].x_max)
-					data[index].x_max = sec;
-
-				if (p->y < data[index].y_min)
-					data[index].y_min = p->y;
-				if (p->y > data[index].y_max)
-					data[index].y_max = p->y;
-				data_append_point(&data[index], p);
+				if (sscanf(buffer + 34, "%lf", &p->y) == 1) {
+					if (sec < data[index].x_min)
+						data[index].x_min = sec;
+					if (sec > data[index].x_max)
+						data[index].x_max = sec;
+	
+					if (p->y < data[index].y_min)
+						data[index].y_min = p->y;
+					if (p->y > data[index].y_max)
+						data[index].y_max = p->y;
+					data_append_point(&data[index], p);
+				}
 			}
 		}
 	}
