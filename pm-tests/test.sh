@@ -74,7 +74,7 @@ fi
 # We need instrument lib to send TAG messages back to the host
 #
 if [ ! -d instrument-lib ]; then
-        git clone git://kernel.ubuntu.com/sconklin/instrument-lib
+        git clone git://kernel.ubuntu.com/ubuntu/instrument-lib
 fi
 
 #
@@ -105,9 +105,9 @@ do
 					#
 					sync; sleep 1
 					sync; sleep 1
-					echo 1 > /proc/sys/vm/drop_caches
-					echo 2 > /proc/sys/vm/drop_caches
-					echo 3 > /proc/sys/vm/drop_caches
+					echo 1 | sudo tee /proc/sys/vm/drop_caches
+					echo 2 | sudo tee /proc/sys/vm/drop_caches
+					echo 3 | sudo tee /proc/sys/vm/drop_caches
 					sync; sleep 1
 					#
 					# Wait a little to settle
