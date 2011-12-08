@@ -66,6 +66,9 @@ typedef struct {
 
 static int opts;
 
+double stats_average_current[DATA_STATS_MAX];
+double stats_average_previous[DATA_STATS_MAX];
+
 static inline double parse_timestamp(const char *buffer)
 {
 	struct tm tm;
@@ -130,6 +133,12 @@ static void calc_average_stddev(const data_t *data, const int n, double *average
 	}
 }
 
+static void underline(FILE *fp)
+{
+	if (! (opts & OPTS_TABBED_COLUMNS))
+		fprintf(fp, "-------         --------    -------  --------\n");
+}
+
 static void data_analyse(FILE *fp, data_t *data, const int n)
 {
 	int i;
@@ -171,8 +180,7 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 	}
 
 	calc_average_stddev(data, n, average, stddev);
-	if (! (opts & OPTS_TABBED_COLUMNS))
-		fprintf(fp, "-------         --------    -------  --------\n");
+	underline(fp);
 	fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
 		"Average\t%8.4f\t%7.3f\t%8.4f\n" :
 		"Average         %8.4f    %7.3f  %8.4f\n",
@@ -185,10 +193,27 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 		stddev[DATA_STATS_INTEGRAL],
 		stddev[DATA_STATS_DURATION],
 		1000.0 * stddev[DATA_STATS_AVERAGE]);
-	if (!(opts & OPTS_TABBED_COLUMNS))
-		fprintf(fp, "-------         --------    -------  --------");
+	underline(fp);
 
-	fprintf(fp, "\n\n");
+	memcpy(stats_average_previous, stats_average_current, sizeof(stats_average_previous));
+	memcpy(stats_average_current,  average, sizeof(stats_average_current));
+}
+
+static void calc_delta(FILE *fp)
+{
+	int j;
+	double delta[DATA_STATS_MAX];
+
+	for (j=0; j<DATA_STATS_MAX; j++) {
+		delta[j] = stats_average_previous[j] - stats_average_current[j];
+	}
+	fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
+		"Diff\t%8.4f\t%7.3f\t%8.4f\n" :
+		"Diff            %8.4f    %7.3f  %8.4f\n",
+		delta[DATA_STATS_INTEGRAL],
+		delta[DATA_STATS_DURATION],
+		1000.0 * delta[DATA_STATS_AVERAGE]);
+	underline(fp);
 }
 
 static int test_run_begin(int *state, int *index, data_t *data)
@@ -256,6 +281,11 @@ static int data_parse(const char *filename)
 			char *ptr = buffer+32;
 			char *s;
 
+			if (strstr(ptr, "TEST_DELTA")) {
+				if (!(opts & OPTS_EXTRACT_RESULTS))
+					calc_delta(stdout);
+			}
+
 			if ((s = strstr(ptr, "TEST_CLIENT")) != NULL) {
 				char buf[64];
 				if (!(opts & OPTS_EXTRACT_RESULTS))
@@ -272,7 +302,7 @@ static int data_parse(const char *filename)
 
 			if ((s = strstr(ptr, "TEST_BEGIN")) != NULL) {
 				if (!(opts & OPTS_EXTRACT_RESULTS))
-					printf("%sTest:   %s\n",
+					printf("\n%sTest:   %s\n",
 						opts & OPTS_TABBED_COLUMNS ? "\t" : "", ptr + 11);
 				sscanf(ptr + 11, "%s", test);
 				state |= STATE_TEST_BEGIN;
