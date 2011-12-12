@@ -14,7 +14,7 @@ if [ -z $ITERATIONS_PER_TEST ]; then
 fi
 
 if [ ! -d instrument-lib ]; then
-        git clone git://kernel.ubuntu.com/sconklin/instrument-lib
+        git clone git://kernel.ubuntu.com/ubuntu/instrument-lib
 fi
 
 info=`uname -r -m -n`
@@ -41,6 +41,7 @@ do
 					#echo 2 > /proc/sys/vm/drop_caches
 					#echo 3 > /proc/sys/vm/drop_caches
 					sync; sleep 1
+					sleep 20
 
 					$SENDTAG $LOG_HOST $TAGPORT "TEST_RUN_BEGIN $J"
 					bash $J		
