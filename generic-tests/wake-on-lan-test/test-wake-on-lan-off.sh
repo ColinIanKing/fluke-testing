@@ -6,7 +6,7 @@ get_state()
 }
 
 if [[ $EUID -ne 0 ]]; then
-	echo "This text needs to be run as root."
+	echo "This test needs to be run as root."
 	exit 1
 fi
 
