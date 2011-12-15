@@ -2,8 +2,8 @@
 gcc random.c -o random
 ./random > random1.dat
 gzip --best random1.dat
-cp random1.dat.gz random2.dat.gz
-cp random1.dat.gz random3.dat.gz
-cp random1.dat.gz random4.dat.gz
-cp random1.dat.gz random5.dat.gz
+for i in `seq 2 50`
+do
+	cp random1.dat.gz random${i}.dat.gz
+done
 sync
