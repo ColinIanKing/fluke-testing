@@ -41,7 +41,7 @@ probe kernel.function("__mark_inode_dirty") {
 	if (begin_delay <= 0) {
 		dev = inode_dev($inode);
 		filename = inode_filename($inode);
-		inode_dirty[pid(),execname(),uid(),ppid(),dev,filename]++ 
+		inode_dirty[pid(),execname(),uid(),ppid(),dev,filename,gettimeofday_s()]++ 
 	}
 }
 
@@ -84,7 +84,7 @@ probe timer.s(1)
 				"Write:",write_bytes/1024)
 		
 			printf("%8s %8s %8s %15s %8s %1s %s\n",
-				"UID","PID","PPID","Cmd","Device","T","Size,inode/Filename")
+				"UID","PID","PPID","Cmd","Device","T","Size,inode/When Filename")
 		}
 	
 		foreach ([process,cmd,userid,parent,action,ino] in io_stat) {
@@ -104,9 +104,9 @@ probe timer.s(1)
 				action,sz, ino);
 		}
 
-		foreach ([process,cmd,userid,parent,dev,filename] in inode_dirty)
-			printf("%8d %8d %8d %-15s %8s %1s %s\n",
-				userid,process,parent,cmd,dev,"D",filename);
+		foreach ([process,cmd,userid,parent,dev,filename,when] in inode_dirty)
+			printf("%8d %8d %8d %-15s %8s %1s %s %s\n",
+				userid,process,parent,cmd,dev,"D",ctime(when), filename);
 			
 		delete io_stat
 		delete device
