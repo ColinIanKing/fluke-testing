@@ -1,0 +1,136 @@
+#!/usr/bin/stap -g
+
+global inode_dirty
+global io_stat,device
+global read_bytes,write_bytes
+global end_after
+global begin_delay
+
+function inode_dev:string(inode:long) %{
+	struct inode *inode = (struct inode*)THIS->inode;
+
+	if (inode->i_ino) {
+		sprintf(THIS->__retvalue, "%s", inode->i_sb->s_id);
+	} else {
+		strcpy(THIS->__retvalue, "");
+	}
+%}
+
+function inode_filename:string(inode:long) %{
+	struct inode *inode = (struct inode*)THIS->inode;
+
+	if (inode->i_ino || strcmp(inode->i_sb->s_id, "bdev")) {
+		struct dentry *dentry;
+
+		dentry = d_find_alias(inode);
+		if (dentry) {
+			const char *name;
+
+			spin_lock(&dentry->d_lock);
+			name = (const char *)dentry->d_name.name;
+			sprintf(THIS->__retvalue, "%s", name);
+			spin_unlock(&dentry->d_lock);
+			dput(dentry);
+		} else {
+			strcpy(THIS->__retvalue, "");
+		}
+	}
+%}
+
+probe kernel.function("__mark_inode_dirty") {
+	if (begin_delay <= 0) {
+		dev = inode_dev($inode);
+		filename = inode_filename($inode);
+		inode_dirty[pid(),execname(),uid(),ppid(),dev,filename]++ 
+	}
+}
+
+probe vfs.read.return {
+	if (begin_delay <= 0) {
+		if ($return>0) {
+			if (devname!="N/A") {/*skip read from cache*/
+				io_stat[pid(),execname(),uid(),ppid(),"R",ino] += $return
+				device[pid(),execname(),uid(),ppid(),"R",ino] = devname
+				read_bytes += $return
+			}
+		}
+	}
+}
+
+probe vfs.write.return {
+	if (begin_delay <= 0) {
+		if ($return>0) {
+			if (devname!="N/A") { /*skip update cache*/
+				io_stat[pid(),execname(),uid(),ppid(),"W",ino] += $return
+				device[pid(),execname(),uid(),ppid(),"W",ino] = devname
+				write_bytes += $return
+			}
+		}
+	}
+}
+
+probe timer.s(1)
+{
+	if (begin_delay == 0)
+		printf("Now recording %d seconds of samples\n", end_after);
+
+
+	if (end_after == 0) {
+		if (read_bytes + write_bytes > 0) {
+			printf("\n%-25s, %-8s%4dKb/sec, %-7s%6dKb, %-7s%6dKb\n\n",
+				ctime(gettimeofday_s()),
+				"Average:", ((read_bytes+write_bytes)/1024)/5,
+				"Read:",read_bytes/1024,
+				"Write:",write_bytes/1024)
+		
+			printf("%8s %8s %8s %15s %8s %1s %s\n",
+				"UID","PID","PPID","Cmd","Device","T","Size,inode/Filename")
+		}
+	
+		foreach ([process,cmd,userid,parent,action,ino] in io_stat) {
+			n = io_stat[process,cmd,userid,parent,action,ino];
+			if (n > 1024 * 1024 * 1024) {
+				sz = sprintf("%5dG", n / (1024 * 1024 * 1024));
+			} else if (n > 1024 * 1024) {
+				sz = sprintf("%5dM", n / (1024 * 1024));
+			} else if (n > 1024) {
+				sz = sprintf("%5dK", n / 1024);
+			} else {
+				sz = sprintf("%5dB", n);
+			}
+			printf("%8d %8d %8d %-15s %8s %1s %s,%8d\n",
+				userid,process,parent,cmd,
+				device[process,cmd,userid,parent,action,ino],
+				action,sz, ino);
+		}
+
+		foreach ([process,cmd,userid,parent,dev,filename] in inode_dirty)
+			printf("%8d %8d %8d %-15s %8s %1s %s\n",
+				userid,process,parent,cmd,dev,"D",filename);
+			
+		delete io_stat
+		delete device
+		read_bytes = 0
+		write_bytes = 0  
+		delete inode_dirty
+		delete begin_delay
+		delete end_after
+	
+		exit()
+	}
+	if (begin_delay > -1)
+		begin_delay--;
+	else
+		end_after--;
+}
+
+probe begin
+{
+	begin_delay=$1
+	end_after=$2
+	/*
+	 *  Were up and running, signal parent script
+	 */
+	printf("SYNC\n")
+	printf("Starting in %d seconds..\n", begin_delay);
+}
