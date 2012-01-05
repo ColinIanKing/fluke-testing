@@ -18,11 +18,16 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
-
 if [ `cat /proc/cpuinfo | grep epb | wc -l` -lt 1 ]; then
 	echo "CPU does not support Intel Energy Perf Bias MSR"
 	exit 1
 fi
+
+#
+# Build msr-test
+#
+rm -f msr-test
+gcc msr-test.c -o msr-test
 
 # Removing flavour from version i.e. generic or server.
 full_version=`uname -r`
@@ -80,7 +85,7 @@ fi
 # statistical data out of the tests
 #
 if [ -z $ITERATIONS_PER_TEST ]; then
-	ITERATIONS_PER_TEST=3
+	ITERATIONS_PER_TEST=5
 fi
 
 #
@@ -117,10 +122,19 @@ do_test()
 		#
 		# Run the tests...
 		#
+		./msr-test ${SLEEP_DURATION} &
+		./msr-test ${SLEEP_DURATION} &
+		./msr-test ${SLEEP_DURATION} &
+		./msr-test ${SLEEP_DURATION} &
+		./msr-test ${SLEEP_DURATION} &
+		./msr-test ${SLEEP_DURATION} &
+		./msr-test ${SLEEP_DURATION} &
+		./msr-test ${SLEEP_DURATION} &
 		$SENDTAG $LOG_HOST $TAGPORT "TEST_RUN_BEGIN $name"
 		sleep ${SLEEP_DURATION}
 		$SENDTAG $LOG_HOST $TAGPORT "TEST_RUN_END $name"
 		echo "Ended"
+		sleep 5
 	done
 	$SENDTAG $LOG_HOST $TAGPORT "TEST_END $1"
 }
