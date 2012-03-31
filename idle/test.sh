@@ -94,6 +94,7 @@ do_test()
 		(echo 2 | sudo tee /proc/sys/vm/drop_caches) > /dev/null
 		(echo 3 | sudo tee /proc/sys/vm/drop_caches) > /dev/null
 		sync; sleep 1
+		pm-powersave true
 		#
 		# Wait a little to settle
 		#
