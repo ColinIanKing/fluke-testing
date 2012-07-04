@@ -24,7 +24,7 @@ if [ $# -eq 1 ]; then
 fi
 
 if [ ! -d instrument-lib ]; then
-	git clone git://kernel.ubuntu.com/sconklin/instrument-lib
+	git clone git://kernel.ubuntu.com/ubuntu/instrument-lib
 fi
 
 rm -f $LOG
