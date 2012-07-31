@@ -118,3 +118,7 @@ do
 	done
 	$SENDTAG $LOG_HOST $TAGPORT "TEST_END Brightness Level $L"
 done
+#
+# And signal test is quitting
+#
+$SENDTAG $LOG_HOST $TAGPORT "TEST_QUIT"

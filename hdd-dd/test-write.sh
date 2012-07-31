@@ -100,3 +100,8 @@ do_test()
 }
 
 do_test "dd write 16GB"
+
+#
+# And signal test is quitting
+#
+$SENDTAG $LOG_HOST $TAGPORT "TEST_QUIT"

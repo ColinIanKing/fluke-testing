@@ -98,3 +98,8 @@ $SENDTAG $LOG_HOST $TAGPORT "TEST_RUN_END Generic Applications: Idle"
 $SENDTAG $LOG_HOST $TAGPORT $(get_mem_stats)
 
 $SENDTAG $LOG_HOST $TAGPORT "TEST_END Generic Applications"
+
+#
+# And signal test is quitting
+#
+$SENDTAG $LOG_HOST $TAGPORT "TEST_QUIT"

@@ -107,3 +107,8 @@ do_test()
 }
 
 do_test "bonnie++"
+
+#
+# And signal test is quitting
+#
+$SENDTAG $LOG_HOST $TAGPORT "TEST_QUIT"

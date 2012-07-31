@@ -125,3 +125,8 @@ killall -9 firefox
 killall -9 thunderbird-bin
 killall -9 thunderbird
 $SENDTAG $LOG_HOST $TAGPORT "TEST_END Generic Applications"
+
+#
+# And signal test is quitting
+#
+$SENDTAG $LOG_HOST $TAGPORT "TEST_QUIT"

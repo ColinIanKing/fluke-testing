@@ -128,3 +128,8 @@ do_test "hdparm -B 127 -S 60"
 
 sudo hdparm -B 127 -S 120 /dev/sda
 do_test "hdparm -B 127 -S 120"
+
+#
+# And signal test is quitting
+#
+$SENDTAG $LOG_HOST $TAGPORT "TEST_QUIT"

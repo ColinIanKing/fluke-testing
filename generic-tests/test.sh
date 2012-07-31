@@ -58,3 +58,7 @@ do
 		echo " "
 	fi
 done
+#
+# And signal test is quitting
+#
+$SENDTAG $LOG_HOST $TAGPORT "TEST_QUIT"

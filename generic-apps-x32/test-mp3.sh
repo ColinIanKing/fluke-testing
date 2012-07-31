@@ -92,3 +92,8 @@ $SENDTAG $LOG_HOST $TAGPORT $(get_mem_stats)
 
 killall -9 rhythmbox
 $SENDTAG $LOG_HOST $TAGPORT "TEST_END Generic Applications"
+
+#
+# And signal test is quitting
+#
+$SENDTAG $LOG_HOST $TAGPORT "TEST_QUIT"

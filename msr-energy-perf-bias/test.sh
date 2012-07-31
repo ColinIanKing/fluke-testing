@@ -141,3 +141,8 @@ do_test()
 do_test "performance"
 do_test "powersave"
 do_test "normal"
+
+#
+# And signal test is quitting
+#
+$SENDTAG $LOG_HOST $TAGPORT "TEST_QUIT"

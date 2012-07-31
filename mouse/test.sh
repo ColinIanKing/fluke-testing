@@ -132,3 +132,8 @@ do_test()
 
 do_test "Touchpad, no movement"
 do_test "Touchpad, movement"
+
+#
+# And signal test is quitting
+#
+$SENDTAG $LOG_HOST $TAGPORT "TEST_QUIT"
