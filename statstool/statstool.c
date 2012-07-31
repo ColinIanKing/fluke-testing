@@ -33,15 +33,16 @@
 #define STATE_TEST_BEGIN	(0x0000001)
 #define STATE_TEST_RUN_BEGIN	(0x0000002)
 
-#define DATA_STATS_INTEGRAL	0
-#define DATA_STATS_DURATION	1
-#define DATA_STATS_AVERAGE	2
-#define DATA_STATS_MAX		3
+#define DATA_STATS_INTEGRAL		(0)
+#define DATA_STATS_DURATION		(1)
+#define DATA_STATS_AVERAGE_CURRENT	(2)
+#define DATA_STATS_MAX			(3)
 
 #define OPTS_EXTRACT_RESULTS	(0x0000001)
 #define OPTS_TABBED_COLUMNS	(0x0000002)
 #define OPTS_STATS_ALL_SAMPLES	(0x0000004)
 #define OPTS_TAGGED_OUTPUT	(0x0000008)
+#define OPTS_DEFAULT		(0x0000000)
 
 /* Single point of data, optionally a tag */
 typedef struct point_t {
@@ -65,7 +66,7 @@ typedef struct {
 	int samples;		/* Number of samples */
 } data_t;
 
-static int opts;
+static int opts = OPTS_DEFAULT;
 
 static inline double parse_timestamp(const char *buffer)
 {
@@ -98,7 +99,7 @@ static void data_free(data_t *data, const int n)
 {
 	int i;
 
-	for (i=0; i<n; i++) {
+	for (i = 0; i < n; i++) {
 		point_t *p = data[i].head;
 
 		while (p) {
@@ -109,20 +110,21 @@ static void data_free(data_t *data, const int n)
 	}
 }
 
-static void calc_average_stddev(const data_t *data, const int n, double *average, double *stddev)
+static void calc_average_stddev(const data_t *data, const int n,
+	double *average, double *stddev)
 {
 	int i;
 	int j;
 	double total;
 
-	for (j=0; j<DATA_STATS_MAX; j++) {
+	for (j = 0; j < DATA_STATS_MAX; j++) {
 		total = 0.0;
-		for (i=0; i<n; i++)
+		for (i = 0; i < n; i++)
 			total += data[i].stats[j];
 		average[j] = total / (double)n;
 
 		total = 0.0;
-		for (i=0; i<n; i++) {
+		for (i = 0; i < n; i++) {
 			double diff = (data[i].stats[j]) - average[j];
 			diff = diff * diff;
 			total += diff;
@@ -147,7 +149,7 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 		}
 	}
 
-	for (i=0; i<n; i++) {
+	for (i = 0; i < n; i++) {
 		point_t *p = data[i].head;
 		data[i].stats[DATA_STATS_INTEGRAL] = 0.0;
 
@@ -161,7 +163,9 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 		}
 
 		data[i].stats[DATA_STATS_DURATION] = data[i].x_max - data[i].x_min;
-		data[i].stats[DATA_STATS_AVERAGE] = data[i].stats[DATA_STATS_INTEGRAL] / data[i].stats[DATA_STATS_DURATION];
+		data[i].stats[DATA_STATS_AVERAGE_CURRENT] = 
+			data[i].stats[DATA_STATS_INTEGRAL] /
+			data[i].stats[DATA_STATS_DURATION];
 
 		if (~opts & OPTS_TAGGED_OUTPUT)
 			fprintf(fp,
@@ -171,7 +175,7 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 				i + 1,
 				data[i].stats[DATA_STATS_INTEGRAL],
 				data[i].stats[DATA_STATS_DURATION],
-				1000.0 * data[i].stats[DATA_STATS_AVERAGE]);
+				1000.0 * data[i].stats[DATA_STATS_AVERAGE_CURRENT]);
 	}
 
 	calc_average_stddev(data, n, average, stddev);
@@ -182,9 +186,9 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 		fprintf(fp, "metric:test_duration_seconds_stddev:%f\n",
 			stddev[DATA_STATS_DURATION]);
 		fprintf(fp, "metric:current_drawn_mA_average:%f\n",
-			average[DATA_STATS_AVERAGE] * 1000.0);
+			average[DATA_STATS_AVERAGE_CURRENT] * 1000.0);
 		fprintf(fp, "metric:current_drawn_mA_stddev:%f\n",
-			stddev[DATA_STATS_AVERAGE] * 1000.0);
+			stddev[DATA_STATS_AVERAGE_CURRENT] * 1000.0);
 	} else {
 		if (! (opts & OPTS_TABBED_COLUMNS))
 			fprintf(fp, "-------         --------    -------  --------\n");
@@ -193,13 +197,13 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 			"Average         %8.4f    %7.3f  %8.4f\n",
 			average[DATA_STATS_INTEGRAL],
 			average[DATA_STATS_DURATION],
-			1000.0 * average[DATA_STATS_AVERAGE]);
+			1000.0 * average[DATA_STATS_AVERAGE_CURRENT]);
 		fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
 			"Std.Dev.\t%8.4f\t%7.3f\t%8.4f\n" :
 			"Std.Dev.        %8.4f    %7.3f  %8.4f\n",
 			stddev[DATA_STATS_INTEGRAL],
 			stddev[DATA_STATS_DURATION],
-			1000.0 * stddev[DATA_STATS_AVERAGE]);
+			1000.0 * stddev[DATA_STATS_AVERAGE_CURRENT]);
 		if (!(opts & OPTS_TABBED_COLUMNS))
 			fprintf(fp, "-------         --------    -------  --------");
 
@@ -308,7 +312,8 @@ static int data_parse(const char *filename)
 					snprintf(name, sizeof(name), "%s-%s-%s-%s.txt",
 						hostname, kernel, test, arch);
 					if ((output = fopen(name, "w"))) {
-						fprintf(output, "%s %s (%s), %s\n\n", hostname, kernel, arch, test);
+						fprintf(output, "%s %s (%s), %s\n\n",
+							hostname, kernel, arch, test);
 						data_analyse(output, data, index+1);
 						fclose(output);
 					} else {
@@ -339,7 +344,8 @@ static int data_parse(const char *filename)
 
 			if (state & STATE_TEST_RUN_BEGIN) {
 				if ((p = calloc(1, sizeof(point_t))) == NULL) {
-					fprintf(stderr, "Out of memory allocating a data point\n");
+					fprintf(stderr, 
+						"Out of memory allocating a data point\n");
 					break;
 				}
 				p->x = sec;
@@ -407,7 +413,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	for (i=optind; i<argc; i++)
+	for (i = optind; i < argc; i++)
 		data_parse(argv[i]);
 
 	exit(EXIT_SUCCESS);
