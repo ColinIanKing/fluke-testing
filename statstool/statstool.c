@@ -66,9 +66,6 @@ typedef struct {
 
 static int opts;
 
-double stats_average_current[DATA_STATS_MAX];
-double stats_average_previous[DATA_STATS_MAX];
-
 static inline double parse_timestamp(const char *buffer)
 {
 	struct tm tm;
@@ -76,7 +73,7 @@ static inline double parse_timestamp(const char *buffer)
 
 	/* Time stamp in format: 2011-12-02T01:03:41.720551 */
 	sscanf(buffer, "%d-%d-%d%*c%d:%d:%lf",
-		&tm.tm_year, &tm.tm_year, &tm.tm_mday,
+		&tm.tm_year, &tm.tm_mon, &tm.tm_mday,
 		&tm.tm_hour, &tm.tm_min, &seconds);
 
 	tm.tm_sec = (int)seconds;
@@ -133,12 +130,6 @@ static void calc_average_stddev(const data_t *data, const int n, double *average
 	}
 }
 
-static void underline(FILE *fp)
-{
-	if (! (opts & OPTS_TABBED_COLUMNS))
-		fprintf(fp, "-------         --------    -------  --------\n");
-}
-
 static void data_analyse(FILE *fp, data_t *data, const int n)
 {
 	int i;
@@ -180,7 +171,8 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 	}
 
 	calc_average_stddev(data, n, average, stddev);
-	underline(fp);
+	if (! (opts & OPTS_TABBED_COLUMNS))
+		fprintf(fp, "-------         --------    -------  --------\n");
 	fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
 		"Average\t%8.4f\t%7.3f\t%8.4f\n" :
 		"Average         %8.4f    %7.3f  %8.4f\n",
@@ -193,27 +185,10 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 		stddev[DATA_STATS_INTEGRAL],
 		stddev[DATA_STATS_DURATION],
 		1000.0 * stddev[DATA_STATS_AVERAGE]);
-	underline(fp);
+	if (!(opts & OPTS_TABBED_COLUMNS))
+		fprintf(fp, "-------         --------    -------  --------");
 
-	memcpy(stats_average_previous, stats_average_current, sizeof(stats_average_previous));
-	memcpy(stats_average_current,  average, sizeof(stats_average_current));
-}
-
-static void calc_delta(FILE *fp)
-{
-	int j;
-	double delta[DATA_STATS_MAX];
-
-	for (j=0; j<DATA_STATS_MAX; j++) {
-		delta[j] = stats_average_previous[j] - stats_average_current[j];
-	}
-	fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
-		"Diff\t%8.4f\t%7.3f\t%8.4f\n" :
-		"Diff            %8.4f    %7.3f  %8.4f\n",
-		delta[DATA_STATS_INTEGRAL],
-		delta[DATA_STATS_DURATION],
-		1000.0 * delta[DATA_STATS_AVERAGE]);
-	underline(fp);
+	fprintf(fp, "\n\n");
 }
 
 static int test_run_begin(int *state, int *index, data_t *data)
@@ -281,16 +256,10 @@ static int data_parse(const char *filename)
 			char *ptr = buffer+32;
 			char *s;
 
-			if (strstr(ptr, "TEST_DELTA")) {
-				if (!(opts & OPTS_EXTRACT_RESULTS))
-					calc_delta(stdout);
-			}
-
 			if ((s = strstr(ptr, "TEST_CLIENT")) != NULL) {
 				char buf[64];
 				if (!(opts & OPTS_EXTRACT_RESULTS))
-					printf("%sClient: %s\n",
-						opts & OPTS_TABBED_COLUMNS ? "\t" : "", s + 12);
+					printf("Client: %s\n",s + 12);
 				sscanf(s + 12, "%s %s %s", hostname, kernel, buf);
 				if (strncmp(buf, "x86_64", 6) == 0)
 					arch = "amd64";
@@ -302,8 +271,7 @@ static int data_parse(const char *filename)
 
 			if ((s = strstr(ptr, "TEST_BEGIN")) != NULL) {
 				if (!(opts & OPTS_EXTRACT_RESULTS))
-					printf("\n%sTest:   %s\n",
-						opts & OPTS_TABBED_COLUMNS ? "\t" : "", ptr + 11);
+					printf("Test:   %s\n", ptr + 11);
 				sscanf(ptr + 11, "%s", test);
 				state |= STATE_TEST_BEGIN;
 			}
@@ -351,18 +319,18 @@ static int data_parse(const char *filename)
 					break;
 				}
 				p->x = sec;
-				if (sscanf(buffer + 34, "%lf", &p->y) == 1) {
-					if (sec < data[index].x_min)
-						data[index].x_min = sec;
-					if (sec > data[index].x_max)
-						data[index].x_max = sec;
-	
-					if (p->y < data[index].y_min)
-						data[index].y_min = p->y;
-					if (p->y > data[index].y_max)
-						data[index].y_max = p->y;
-					data_append_point(&data[index], p);
-				}
+				sscanf(buffer + 34, "%lf", &p->y);
+
+				if (sec < data[index].x_min)
+					data[index].x_min = sec;
+				if (sec > data[index].x_max)
+					data[index].x_max = sec;
+
+				if (p->y < data[index].y_min)
+					data[index].y_min = p->y;
+				if (p->y > data[index].y_max)
+					data[index].y_max = p->y;
+				data_append_point(&data[index], p);
 			}
 		}
 	}
