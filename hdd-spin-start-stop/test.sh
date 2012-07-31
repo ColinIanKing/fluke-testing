@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# Copyright (C) 2011 Canonical
+# Copyright (C) 2011-2012 Canonical
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -17,8 +17,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
-
-
 
 which smartctl >& /dev/null
 if [ $? -ne 0 ]; then
@@ -47,18 +45,6 @@ export SLEEP_DURATION=1800
 #
 SETTLE_DURATION=15
 
-#
-# We need to pick up on_ac_power to fake a system running
-# on battery for some of the pm power.d scripts to run
-#
-export PATH=`pwd`:$PATH
-
-#
-# Settings of on_ac_power return
-#
-export AC_POWER_ON=0
-export AC_POWER_OFF=1
-
 MACHINE_ID=`uname -r -m -n`
 
 if [ -z $LOG_HOST ]; then
@@ -67,9 +53,8 @@ fi
 
 if [ -z $TAGPORT ]; then
 	TAGPORT=9999
-	#TAGPORT=1111
-	# currently this is to udp-relay
 fi
+
 if [ -z $SENDTAG ]; then
 	SENDTAG=`pwd`/instrument-lib/sendtag
 fi
@@ -143,8 +128,3 @@ do_test "hdparm -B 127 -S 60"
 
 sudo hdparm -B 127 -S 120 /dev/sda
 do_test "hdparm -B 127 -S 120"
-
-#sudo hdparm -B 127 /dev/sda
-#do_test "hdparm -B 127"
-#sudo hdparm -B 128 /dev/sda
-#do_test "hdparm -B 128"

@@ -41,12 +41,6 @@ SETTLE_DURATION=15
 #
 export PATH=`pwd`:$PATH
 
-#
-# Settings of on_ac_power return
-#
-export AC_POWER_ON=0
-export AC_POWER_OFF=1
-
 MACHINE_ID=`uname -r -m -n`
 
 if [ -z $LOG_HOST ]; then
@@ -55,9 +49,8 @@ fi
 
 if [ -z $TAGPORT ]; then
 	TAGPORT=9999
-	#TAGPORT=1111
-	# currently this is to udp-relay
 fi
+
 if [ -z $SENDTAG ]; then
 	SENDTAG=`pwd`/instrument-lib/sendtag
 fi
@@ -119,6 +112,7 @@ do
 	killall -9 firefox
 	sleep 60
 	killall -9 thunderbird-bin
+	killall -9 thunderbird
 	sleep 20
 	$SENDTAG $LOG_HOST $TAGPORT "TEST_RUN_END Generic Applications"
 done

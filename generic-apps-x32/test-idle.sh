@@ -35,18 +35,6 @@ export SLEEP_DURATION=60
 #
 SETTLE_DURATION=120
 
-#
-# We need to pick up on_ac_power to fake a system running
-# on battery for some of the pm power.d scripts to run
-#
-export PATH=`pwd`:$PATH
-
-#
-# Settings of on_ac_power return
-#
-export AC_POWER_ON=0
-export AC_POWER_OFF=1
-
 get_mem_stats()
 {
 	mem_used=$(free | grep Mem | awk '{print $3}')
@@ -63,9 +51,8 @@ fi
 
 if [ -z $TAGPORT ]; then
 	TAGPORT=9999
-	#TAGPORT=1111
-	# currently this is to udp-relay
 fi
+
 if [ -z $SENDTAG ]; then
 	SENDTAG=`pwd`/instrument-lib/sendtag
 fi
@@ -91,7 +78,6 @@ echo "SUBTEST: Generic Applications"
 
 # Flush dirty pages and drop caches
 #
-rm -rf ~/.mozilla/firefox
 sync; sleep 1
 sync; sleep 1
 (echo 1 | sudo tee /proc/sys/vm/drop_caches) > /dev/null

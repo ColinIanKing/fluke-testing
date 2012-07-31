@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# Copyright (C) 2011 Canonical
+# Copyright (C) 2011-2012 Canonical
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -60,9 +60,8 @@ fi
 
 if [ -z $TAGPORT ]; then
 	TAGPORT=9999
-	#TAGPORT=1111
-	# currently this is to udp-relay
 fi
+
 if [ -z $SENDTAG ]; then
 	SENDTAG=`pwd`/instrument-lib/sendtag
 fi

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# Copyright (C) 2011 Canonical
+# Copyright (C) 2011-2012 Canonical
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -37,12 +37,6 @@ SETTLE_DURATION=20
 #
 export PATH=`pwd`:$PATH
 
-#
-# Settings of on_ac_power return
-#
-export AC_POWER_ON=0
-export AC_POWER_OFF=1
-
 MACHINE_ID=`uname -r -m -n`
 
 get_levels()
@@ -67,9 +61,8 @@ fi
 
 if [ -z $TAGPORT ]; then
 	TAGPORT=9999
-	#TAGPORT=1111
-	# currently this is to udp-relay
 fi
+
 if [ -z $SENDTAG ]; then
 	SENDTAG=`pwd`/instrument-lib/sendtag
 fi
