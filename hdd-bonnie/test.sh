@@ -58,6 +58,14 @@ if [ -z $ITERATIONS_PER_TEST ]; then
 fi
 
 #
+# We need to ensure bonnie++ is installed
+#
+which bonnie++ >& /dev/null
+if [ $? -ne 0 ]; then
+        apt-get install bonnie++
+fi
+
+#
 # We need instrument lib to send TAG messages back to the host
 #
 if [ ! -d instrument-lib ]; then
