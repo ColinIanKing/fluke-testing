@@ -58,6 +58,14 @@ if [ -z $ITERATIONS_PER_TEST ]; then
 fi
 
 #
+# Make sure tiobench is installed
+#
+which tiobench >& /dev/null
+if [ $? -ne 0 ]; then
+        sudo apt-get install tiobench
+fi
+
+#
 # We need instrument lib to send TAG messages back to the host
 #
 if [ ! -d instrument-lib ]; then
