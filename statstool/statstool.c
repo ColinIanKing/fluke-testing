@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Canonical
+ * Copyright (C) 2011-2012 Canonical
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,6 +41,7 @@
 #define OPTS_EXTRACT_RESULTS	(0x0000001)
 #define OPTS_TABBED_COLUMNS	(0x0000002)
 #define OPTS_STATS_ALL_SAMPLES	(0x0000004)
+#define OPTS_TAGGED_OUTPUT	(0x0000008)
 
 /* Single point of data, optionally a tag */
 typedef struct point_t {
@@ -136,12 +137,14 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 	double average[DATA_STATS_MAX];
 	double stddev[DATA_STATS_MAX];
 
-	if (opts & OPTS_TABBED_COLUMNS) {
-		fprintf(fp, "\tIntegral\tDuration\t\n");
-		fprintf(fp, "\t\t(Secs)\t(mA)\n");
-	} else {
-		fprintf(fp, "                Integral  Duration   Average\n");
-		fprintf(fp, "                           (Secs)     (mA)\n");
+	if (~opts & OPTS_TAGGED_OUTPUT) {
+		if (opts & OPTS_TABBED_COLUMNS) {
+			fprintf(fp, "\tIntegral\tDuration\t\n");
+			fprintf(fp, "\t\t(Secs)\t(mA)\n");
+		} else {
+			fprintf(fp, "                Integral  Duration   Average\n");
+			fprintf(fp, "                           (Secs)     (mA)\n");
+		}
 	}
 
 	for (i=0; i<n; i++) {
@@ -160,35 +163,48 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 		data[i].stats[DATA_STATS_DURATION] = data[i].x_max - data[i].x_min;
 		data[i].stats[DATA_STATS_AVERAGE] = data[i].stats[DATA_STATS_INTEGRAL] / data[i].stats[DATA_STATS_DURATION];
 
-		fprintf(fp, 
-			opts & OPTS_TABBED_COLUMNS ?
-			"Test run %2d\t%8.4f\t%7.3f\t%8.4f\n" :
-			"Test run %2d     %8.4f    %7.3f  %8.4f\n",
-			i + 1,
-			data[i].stats[DATA_STATS_INTEGRAL],
-			data[i].stats[DATA_STATS_DURATION],
-			1000.0 * data[i].stats[DATA_STATS_AVERAGE]);
+		if (~opts & OPTS_TAGGED_OUTPUT)
+			fprintf(fp, 
+				opts & OPTS_TABBED_COLUMNS ?
+				"Test run %2d\t%8.4f\t%7.3f\t%8.4f\n" :
+				"Test run %2d     %8.4f    %7.3f  %8.4f\n",
+				i + 1,
+				data[i].stats[DATA_STATS_INTEGRAL],
+				data[i].stats[DATA_STATS_DURATION],
+				1000.0 * data[i].stats[DATA_STATS_AVERAGE]);
 	}
 
 	calc_average_stddev(data, n, average, stddev);
-	if (! (opts & OPTS_TABBED_COLUMNS))
-		fprintf(fp, "-------         --------    -------  --------\n");
-	fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
-		"Average\t%8.4f\t%7.3f\t%8.4f\n" :
-		"Average         %8.4f    %7.3f  %8.4f\n",
-		average[DATA_STATS_INTEGRAL],
-		average[DATA_STATS_DURATION],
-		1000.0 * average[DATA_STATS_AVERAGE]);
-	fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
-		"Std.Dev.\t%8.4f\t%7.3f\t%8.4f\n" :
-		"Std.Dev.        %8.4f    %7.3f  %8.4f\n",
-		stddev[DATA_STATS_INTEGRAL],
-		stddev[DATA_STATS_DURATION],
-		1000.0 * stddev[DATA_STATS_AVERAGE]);
-	if (!(opts & OPTS_TABBED_COLUMNS))
-		fprintf(fp, "-------         --------    -------  --------");
 
-	fprintf(fp, "\n\n");
+	if (opts & OPTS_TAGGED_OUTPUT) {
+		fprintf(fp, "metric:test_duration_seconds_average:%f\n",
+			average[DATA_STATS_DURATION]);
+		fprintf(fp, "metric:test_duration_seconds_stddev:%f\n",
+			stddev[DATA_STATS_DURATION]);
+		fprintf(fp, "metric:current_drawn_mA_average:%f\n",
+			average[DATA_STATS_AVERAGE] * 1000.0);
+		fprintf(fp, "metric:current_drawn_mA_stddev:%f\n",
+			stddev[DATA_STATS_AVERAGE] * 1000.0);
+	} else {
+		if (! (opts & OPTS_TABBED_COLUMNS))
+			fprintf(fp, "-------         --------    -------  --------\n");
+		fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
+			"Average\t%8.4f\t%7.3f\t%8.4f\n" :
+			"Average         %8.4f    %7.3f  %8.4f\n",
+			average[DATA_STATS_INTEGRAL],
+			average[DATA_STATS_DURATION],
+			1000.0 * average[DATA_STATS_AVERAGE]);
+		fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
+			"Std.Dev.\t%8.4f\t%7.3f\t%8.4f\n" :
+			"Std.Dev.        %8.4f    %7.3f  %8.4f\n",
+			stddev[DATA_STATS_INTEGRAL],
+			stddev[DATA_STATS_DURATION],
+			1000.0 * stddev[DATA_STATS_AVERAGE]);
+		if (!(opts & OPTS_TABBED_COLUMNS))
+			fprintf(fp, "-------         --------    -------  --------");
+	
+		fprintf(fp, "\n\n");
+	}
 }
 
 static int test_run_begin(int *state, int *index, data_t *data)
@@ -258,8 +274,12 @@ static int data_parse(const char *filename)
 
 			if ((s = strstr(ptr, "TEST_CLIENT")) != NULL) {
 				char buf[64];
-				if (!(opts & OPTS_EXTRACT_RESULTS))
-					printf("Client: %s\n",s + 12);
+				if (!(opts & OPTS_EXTRACT_RESULTS)) {
+					if (opts & OPTS_TAGGED_OUTPUT)
+						printf("info:client:%s\n", s + 12);
+					else
+						printf("Client: %s\n",s + 12);
+				}
 				sscanf(s + 12, "%s %s %s", hostname, kernel, buf);
 				if (strncmp(buf, "x86_64", 6) == 0)
 					arch = "amd64";
@@ -270,8 +290,12 @@ static int data_parse(const char *filename)
 			}
 
 			if ((s = strstr(ptr, "TEST_BEGIN")) != NULL) {
-				if (!(opts & OPTS_EXTRACT_RESULTS))
-					printf("Test:   %s\n", ptr + 11);
+				if (!(opts & OPTS_EXTRACT_RESULTS)) {
+					if (opts & OPTS_TAGGED_OUTPUT)
+						printf("info:test-name:%s\n", ptr + 11);
+					else
+						printf("Test:   %s\n", ptr + 11);
+				}
 				sscanf(ptr + 11, "%s", test);
 				state |= STATE_TEST_BEGIN;
 			}
@@ -308,8 +332,8 @@ static int data_parse(const char *filename)
 		}
 
 		if (strstr(buffer+27, "SAMPLE:")) {
-			if ((opts & OPTS_STATS_ALL_SAMPLES) && (!(state & STATE_TEST_RUN_BEGIN))) {
-				printf("HERE\n");
+			if ((opts & OPTS_STATS_ALL_SAMPLES) &&
+			    (!(state & STATE_TEST_RUN_BEGIN))) {
 				test_run_begin(&state, &index, data);
 			}
 
@@ -351,6 +375,7 @@ static void show_help(const char *name)
 	fprintf(stderr, "\t-x extract per-test results and each to a file.\n");
 	fprintf(stderr, "\t-t dump tabbed columns for importing data into a spreadsheet.\n");
 	fprintf(stderr, "\t-s run stats on all the log, ignore any TAGs.\n");
+	fprintf(stderr, "\t-T Tagged output (for autotest integration.\n");
 }
 
 int main(int argc, char *argv[])
@@ -358,7 +383,7 @@ int main(int argc, char *argv[])
 	int i;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "xhts")) != -1) {
+	while ((opt = getopt(argc, argv, "xhtsT")) != -1) {
 		switch (opt) {
 		case 'h':
 			show_help(argv[0]);
@@ -372,6 +397,9 @@ int main(int argc, char *argv[])
 			break;
 		case 's':
 			opts |= OPTS_STATS_ALL_SAMPLES;
+			break;
+		case 'T':
+			opts |= OPTS_TAGGED_OUTPUT;
 			break;
 		default:
 			show_help(argv[0]);
