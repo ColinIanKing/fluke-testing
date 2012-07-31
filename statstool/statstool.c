@@ -164,7 +164,7 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 		data[i].stats[DATA_STATS_AVERAGE] = data[i].stats[DATA_STATS_INTEGRAL] / data[i].stats[DATA_STATS_DURATION];
 
 		if (~opts & OPTS_TAGGED_OUTPUT)
-			fprintf(fp, 
+			fprintf(fp,
 				opts & OPTS_TABBED_COLUMNS ?
 				"Test run %2d\t%8.4f\t%7.3f\t%8.4f\n" :
 				"Test run %2d     %8.4f    %7.3f  %8.4f\n",
@@ -202,7 +202,7 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 			1000.0 * stddev[DATA_STATS_AVERAGE]);
 		if (!(opts & OPTS_TABBED_COLUMNS))
 			fprintf(fp, "-------         --------    -------  --------");
-	
+
 		fprintf(fp, "\n\n");
 	}
 }
