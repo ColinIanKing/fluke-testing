@@ -36,12 +36,15 @@
 #define DATA_STATS_INTEGRAL		(0)
 #define DATA_STATS_DURATION		(1)
 #define DATA_STATS_AVERAGE_CURRENT	(2)
-#define DATA_STATS_MAX			(3)
+#define DATA_STATS_STD_DEV		(3)
+#define DATA_STATS_MAX			(4)
 
 #define OPTS_EXTRACT_RESULTS	(0x0000001)
 #define OPTS_TABBED_COLUMNS	(0x0000002)
 #define OPTS_STATS_ALL_SAMPLES	(0x0000004)
 #define OPTS_TAGGED_OUTPUT	(0x0000008)
+#define OPTS_STATS_SUMMARY	(0x0000010)
+#define OPTS_STATS_PER_TEST	(0x0000020)
 #define OPTS_DEFAULT		(0x0000000)
 
 /* Single point of data, optionally a tag */
@@ -67,6 +70,8 @@ typedef struct {
 } data_t;
 
 static int opts = OPTS_DEFAULT;
+
+double scale_by = 1.0;
 
 static inline double parse_timestamp(const char *buffer)
 {
@@ -138,14 +143,17 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 	int i;
 	double average[DATA_STATS_MAX];
 	double stddev[DATA_STATS_MAX];
+	double total;
+	int    samples;
 
-	if (~opts & OPTS_TAGGED_OUTPUT) {
+	if (!(opts & OPTS_TAGGED_OUTPUT)  &&
+	    (opts & (OPTS_STATS_PER_TEST | OPTS_STATS_SUMMARY))) {
 		if (opts & OPTS_TABBED_COLUMNS) {
-			fprintf(fp, "\tIntegral\tDuration\t\n");
-			fprintf(fp, "\t\t(Secs)\t(mA)\n");
+			fprintf(fp, "\tIntegral\tDuration\tAverage\tStd.Dev\n");
+			fprintf(fp, "\t\t(Secs)\t(mA)\t(mA)\n");
 		} else {
-			fprintf(fp, "                Integral  Duration   Average\n");
-			fprintf(fp, "                           (Secs)     (mA)\n");
+			fprintf(fp, "                Integral  Duration   Average   Std.Dev.\n");
+			fprintf(fp, "                           (Secs)     (mA)       (mA)\n");
 		}
 	}
 
@@ -167,47 +175,78 @@ static void data_analyse(FILE *fp, data_t *data, const int n)
 			data[i].stats[DATA_STATS_INTEGRAL] /
 			data[i].stats[DATA_STATS_DURATION];
 
-		if (~opts & OPTS_TAGGED_OUTPUT)
-			fprintf(fp,
-				opts & OPTS_TABBED_COLUMNS ?
-				"Test run %2d\t%8.4f\t%7.3f\t%8.4f\n" :
-				"Test run %2d     %8.4f    %7.3f  %8.4f\n",
-				i + 1,
-				data[i].stats[DATA_STATS_INTEGRAL],
-				data[i].stats[DATA_STATS_DURATION],
-				1000.0 * data[i].stats[DATA_STATS_AVERAGE_CURRENT]);
+		p = data[i].head;
+		total = 0.0;
+		samples = 0;
+		while (p) {
+			if (p->next) {
+				double y  = ((p->y + p->next->y) / 2.0);
+				double diff = y - data[i].stats[DATA_STATS_AVERAGE_CURRENT];
+				diff = diff * diff;
+				total += diff;
+				samples++;
+			}
+			p = p->next;
+		}
+		data[i].stats[DATA_STATS_STD_DEV] = sqrt(total / (double)samples);
+
+		if (opts & OPTS_STATS_PER_TEST) {
+			if (opts & OPTS_TAGGED_OUTPUT) {
+				fprintf(fp, "info:test_iteration:%d\n", i + 1);
+				fprintf(fp, "metric:test_duration_seconds_average:%f\n",
+					data[i].stats[DATA_STATS_DURATION]);
+				fprintf(fp, "metric:current_drawn_mA_average:%f\n",
+					1000.0 * data[i].stats[DATA_STATS_AVERAGE_CURRENT]);
+				fprintf(fp, "metric:current_drawn_mA_stddev:%f\n",
+					1000.0 * data[i].stats[DATA_STATS_STD_DEV]);
+			} else {
+				fprintf(fp,
+					opts & OPTS_TABBED_COLUMNS ?
+					"Test run %2d\t%8.4f\t%7.3f\t%8.4f\n\t%8.4f\n" :
+					"Test run %2d     %8.4f    %7.3f  %8.4f  %8.4f\n",
+					i + 1,
+					data[i].stats[DATA_STATS_INTEGRAL],
+					data[i].stats[DATA_STATS_DURATION],
+					1000.0 * data[i].stats[DATA_STATS_AVERAGE_CURRENT],
+					1000.0 * data[i].stats[DATA_STATS_STD_DEV]);
+			}
+		}
 	}
 
-	calc_average_stddev(data, n, average, stddev);
+	if (opts & OPTS_STATS_SUMMARY) {
+		/* Dump out stats from all the runs */
+		calc_average_stddev(data, n, average, stddev);
 
-	if (opts & OPTS_TAGGED_OUTPUT) {
-		fprintf(fp, "metric:test_duration_seconds_average:%f\n",
-			average[DATA_STATS_DURATION]);
-		fprintf(fp, "metric:test_duration_seconds_stddev:%f\n",
-			stddev[DATA_STATS_DURATION]);
-		fprintf(fp, "metric:current_drawn_mA_average:%f\n",
-			average[DATA_STATS_AVERAGE_CURRENT] * 1000.0);
-		fprintf(fp, "metric:current_drawn_mA_stddev:%f\n",
-			stddev[DATA_STATS_AVERAGE_CURRENT] * 1000.0);
-	} else {
-		if (! (opts & OPTS_TABBED_COLUMNS))
-			fprintf(fp, "-------         --------    -------  --------\n");
-		fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
-			"Average\t%8.4f\t%7.3f\t%8.4f\n" :
-			"Average         %8.4f    %7.3f  %8.4f\n",
-			average[DATA_STATS_INTEGRAL],
-			average[DATA_STATS_DURATION],
-			1000.0 * average[DATA_STATS_AVERAGE_CURRENT]);
-		fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
-			"Std.Dev.\t%8.4f\t%7.3f\t%8.4f\n" :
-			"Std.Dev.        %8.4f    %7.3f  %8.4f\n",
-			stddev[DATA_STATS_INTEGRAL],
-			stddev[DATA_STATS_DURATION],
-			1000.0 * stddev[DATA_STATS_AVERAGE_CURRENT]);
-		if (!(opts & OPTS_TABBED_COLUMNS))
-			fprintf(fp, "-------         --------    -------  --------");
-
-		fprintf(fp, "\n\n");
+		if (opts & OPTS_TAGGED_OUTPUT) {
+			fprintf(fp, "info:total_number_of_tests:%d\n", n);
+			fprintf(fp, "metric:test_duration_seconds_average:%f\n",
+				average[DATA_STATS_DURATION]);
+			fprintf(fp, "metric:test_duration_seconds_stddev:%f\n",
+				stddev[DATA_STATS_DURATION]);
+			fprintf(fp, "metric:current_drawn_mA_average:%f\n",
+				average[DATA_STATS_AVERAGE_CURRENT] * 1000.0);
+			fprintf(fp, "metric:current_drawn_mA_stddev:%f\n",
+				stddev[DATA_STATS_AVERAGE_CURRENT] * 1000.0);
+		} else {
+			if (! (opts & OPTS_TABBED_COLUMNS))
+				fprintf(fp, "-------         --------    -------  --------\n");
+			fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
+				"Average\t%8.4f\t%7.3f\t%8.4f\n" :
+				"Average         %8.4f    %7.3f  %8.4f\n",
+				average[DATA_STATS_INTEGRAL],
+				average[DATA_STATS_DURATION],
+				1000.0 * average[DATA_STATS_AVERAGE_CURRENT]);
+			fprintf(fp, opts & OPTS_TABBED_COLUMNS ?
+				"Std.Dev.\t%8.4f\t%7.3f\t%8.4f\n" :
+				"Std.Dev.        %8.4f    %7.3f  %8.4f\n",
+				stddev[DATA_STATS_INTEGRAL],
+				stddev[DATA_STATS_DURATION],
+				1000.0 * stddev[DATA_STATS_AVERAGE_CURRENT]);
+			if (!(opts & OPTS_TABBED_COLUMNS))
+				fprintf(fp, "-------         --------    -------  --------");
+	
+			fprintf(fp, "\n\n");
+		}
 	}
 }
 
@@ -351,6 +390,8 @@ static int data_parse(const char *filename)
 				p->x = sec;
 				sscanf(buffer + 34, "%lf", &p->y);
 
+				p->y *= scale_by;
+
 				if (sec < data[index].x_min)
 					data[index].x_min = sec;
 				if (sec > data[index].x_max)
@@ -360,6 +401,7 @@ static int data_parse(const char *filename)
 					data[index].y_min = p->y;
 				if (p->y > data[index].y_max)
 					data[index].y_max = p->y;
+
 				data_append_point(&data[index], p);
 			}
 		}
@@ -376,12 +418,14 @@ static int data_parse(const char *filename)
 
 static void show_help(const char *name)
 {
-	fprintf(stderr, "Usage %s: [-h] [-x] [-t] [-s] logfile(s)\n", name);
+	fprintf(stderr, "Usage %s: [-h] [-x] [-t] [-a] [-T] [-S] [-s] [-X scale] logfile(s)\n", name);
 	fprintf(stderr, "\t-h help\n");
 	fprintf(stderr, "\t-x extract per-test results and each to a file.\n");
 	fprintf(stderr, "\t-t dump tabbed columns for importing data into a spreadsheet.\n");
-	fprintf(stderr, "\t-s run stats on all the log, ignore any TAGs.\n");
-	fprintf(stderr, "\t-T Tagged output (for autotest integration.\n");
+	fprintf(stderr, "\t-a run stats on all the log, ignore any TAGs.\n");
+	fprintf(stderr, "\t-T Tagged output (for autotest integration).\n");
+	fprintf(stderr, "\t-X Scale values by a given value.\n");
+	fprintf(stderr, "\t-S Statistics summary for all test runs.\n");
 }
 
 int main(int argc, char *argv[])
@@ -389,7 +433,7 @@ int main(int argc, char *argv[])
 	int i;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "xhtsT")) != -1) {
+	while ((opt = getopt(argc, argv, "axhtsSTX:")) != -1) {
 		switch (opt) {
 		case 'h':
 			show_help(argv[0]);
@@ -401,17 +445,29 @@ int main(int argc, char *argv[])
 		case 't':
 			opts |= OPTS_TABBED_COLUMNS;
 			break;
-		case 's':
+		case 'a':
 			opts |= OPTS_STATS_ALL_SAMPLES;
 			break;
 		case 'T':
 			opts |= OPTS_TAGGED_OUTPUT;
+			break;
+		case 'X':
+			scale_by = atof(optarg);
+			break;
+		case 's':
+			opts |= OPTS_STATS_SUMMARY;
+			break;
+		case 'S':
+			opts |= OPTS_STATS_PER_TEST;
 			break;
 		default:
 			show_help(argv[0]);
 			exit(EXIT_FAILURE);
 		}
 	}
+
+	if (!(opts & (OPTS_STATS_SUMMARY | OPTS_STATS_PER_TEST)))
+		opts |= (OPTS_STATS_SUMMARY | OPTS_STATS_PER_TEST);
 
 	for (i = optind; i < argc; i++)
 		data_parse(argv[i]);
