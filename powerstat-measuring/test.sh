@@ -51,7 +51,7 @@ run_test()
 	for I in $(seq $TESTS)
 	do
 		echo "Test run #$I"
-		$STRESS_NG -t ${DURATION} $1 --metrics-brief -Y yaml-$I.log &
+		($STRESS_NG -t ${DURATION} $1 --metrics-brief -Y yaml-$I.log &) &> /dev/null
 		pid=$!
 		sudo $POWERSTAT -RDgst 1 ${DURATION} > stat-$I.log
 		wait $pid
@@ -81,6 +81,7 @@ setup
 
 run_test "--cpu 0 --cpu-load 0"
 run_test "--cpu 0 --cpu-load 1"
+exit 0
 run_test "--cpu 0 --cpu-load 25"
 run_test "--cpu 0 --cpu-load 50"
 run_test "--cpu 0 --cpu-load 75"
