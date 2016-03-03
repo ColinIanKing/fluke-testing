@@ -1,0 +1,14 @@
+Run the test.sh script on the target machine. One can
+run this multiple times wit different kernels.
+
+e.g.
+script $(uname -r).log
+sudo ./test.sh
+^D
+
+then clean up the typescript log (remove ^Ms)
+
+and collate data with:
+
+cat *.log | awk -f parse-log.awk
+
